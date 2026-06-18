@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: maintenance-orchestrator-system
+  labels:
+    app.kubernetes.io/name: maintenance-orchestrator
+    app.kubernetes.io/part-of: maintenance-orchestrator
+    app.kubernetes.io/managed-by: kubectl
+    # Pod Security Admission: the manager runs non-root with a seccomp profile and
+    # no added capabilities, so it satisfies the "restricted" profile.
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+

@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: maintenance-orchestrator-config
+  namespace: maintenance-orchestrator-system
+  labels:
+    app.kubernetes.io/name: maintenance-orchestrator
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/part-of: maintenance-orchestrator
+data:
+  config.yaml: |
+    # Runtime configuration for the maintenance-orchestrator manager.
+    # Precedence at startup: these values -> environment variables.
+    metricsAddr: ":8080"
+    probeAddr: ":8081"
+    leaderElection: true
+    leaderElectionID: "maintenance-orchestrator.maintenance.platform.dev"
+    reconcileConcurrency: 2
+    evictionPollInterval: "5s"
+    globalRequeueInterval: "30s"
+    defaultDrainTimeout: "15m"
+    defaultGlobalTimeout: "2h"
+    logLevel: "info"
+    logFormat: "json"
+    enableK8sEvents: true
+    defaultPolicyName: "cluster-default"
+    # Set to a path on a writable mount (e.g. a PVC) to also append the audit
+    # trail as JSON lines. Empty disables file export.
+    auditExportPath: ""
+    defaultPoolKeys:
+      - machine.openshift.io/cluster-api-machineset
+      - eks.amazonaws.com/nodegroup
+      - cloud.google.com/gke-nodepool
+      - agentpool
+      - karpenter.sh/nodepool
+

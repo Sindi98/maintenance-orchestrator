@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: maintenance-orchestrator-metrics
+  namespace: maintenance-orchestrator-system
+  labels:
+    app.kubernetes.io/name: maintenance-orchestrator
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/part-of: maintenance-orchestrator
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: maintenance-orchestrator
+    app.kubernetes.io/component: controller
+  ports:
+    - name: metrics
+      port: 8080
+      targetPort: metrics
+      protocol: TCP
+

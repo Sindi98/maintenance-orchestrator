@@ -1,0 +1,48 @@
+# Cluster-scoped permissions for the maintenance-orchestrator controller.
+# These rules mirror the +kubebuilder:rbac markers in internal/controller and are
+# the file `make manifests` (controller-gen rbac:roleName=maintenance-orchestrator)
+# regenerates. Keep them minimal.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: maintenance-orchestrator
+  labels:
+    app.kubernetes.io/name: maintenance-orchestrator
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/part-of: maintenance-orchestrator
+rules:
+  # Own custom resources.
+  - apiGroups: ["maintenance.platform.dev"]
+    resources: ["maintenancerequests"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  - apiGroups: ["maintenance.platform.dev"]
+    resources: ["maintenancepolicies"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["maintenance.platform.dev"]
+    resources: ["maintenancerequests/status", "maintenancepolicies/status"]
+    verbs: ["get", "update", "patch"]
+  # Nodes: read and cordon/uncordon (patch spec.unschedulable).
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch", "patch"]
+  # Pods: read to plan/drain; delete only for policy-permitted force eviction.
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch", "delete"]
+  # Eviction API (policy/v1) honoring PodDisruptionBudgets.
+  - apiGroups: [""]
+    resources: ["pods/eviction"]
+    verbs: ["create"]
+  # PodDisruptionBudgets: read to evaluate drain safety.
+  - apiGroups: ["policy"]
+    resources: ["poddisruptionbudgets"]
+    verbs: ["get", "list", "watch"]
+  # Workloads: read to resolve owners and replica counts.
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets", "statefulsets", "daemonsets"]
+    verbs: ["get", "list", "watch"]
+  # Events: emit Kubernetes Events for the audit trail.
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+

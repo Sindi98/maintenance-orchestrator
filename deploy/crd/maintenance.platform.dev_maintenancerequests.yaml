@@ -1,0 +1,505 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: maintenancerequests.maintenance.platform.dev
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.15.0
+spec:
+  group: maintenance.platform.dev
+  names:
+    kind: MaintenanceRequest
+    listKind: MaintenanceRequestList
+    plural: maintenancerequests
+    singular: maintenancerequest
+    shortNames:
+      - mreq
+  scope: Cluster
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Phase
+          type: string
+          jsonPath: .status.phase
+        - name: Mode
+          type: string
+          jsonPath: .spec.mode
+        - name: Strategy
+          type: string
+          jsonPath: .spec.strategy
+        - name: Total
+          type: integer
+          jsonPath: .status.summary.total
+        - name: Done
+          type: integer
+          jsonPath: .status.summary.completed
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp
+      schema:
+        openAPIV3Schema:
+          description: MaintenanceRequest is a single, auditable node/pool maintenance operation.
+          type: object
+          properties:
+            apiVersion:
+              type: string
+            kind:
+              type: string
+            metadata:
+              type: object
+            spec:
+              description: MaintenanceSpec is the desired state of a MaintenanceRequest.
+              type: object
+              required:
+                - approval
+                - mode
+                - reason
+                - requestedBy
+                - target
+              properties:
+                mode:
+                  description: Mode controls whether this request mutates the cluster (Execute) or only analyzes it (DryRun/Advisory).
+                  type: string
+                  enum:
+                    - DryRun
+                    - Advisory
+                    - Execute
+                reason:
+                  description: Reason is a human-readable justification, recorded in the audit trail.
+                  type: string
+                requestedBy:
+                  description: RequestedBy identifies who requested the maintenance.
+                  type: string
+                target:
+                  description: Target selects the nodes this request operates on.
+                  type: object
+                  required:
+                    - type
+                  properties:
+                    type:
+                      description: Type selects the resolution mode for target nodes.
+                      type: string
+                      enum:
+                        - Node
+                        - NodeSelector
+                        - Pool
+                    nodeNames:
+                      description: NodeNames is the explicit node list, used when Type is Node.
+                      type: array
+                      items:
+                        type: string
+                    selector:
+                      description: Selector matches nodes by label, used when Type is NodeSelector.
+                      type: object
+                      properties:
+                        matchExpressions:
+                          type: array
+                          items:
+                            type: object
+                            required:
+                              - key
+                              - operator
+                            properties:
+                              key:
+                                type: string
+                              operator:
+                                type: string
+                              values:
+                                type: array
+                                items:
+                                  type: string
+                                x-kubernetes-list-type: atomic
+                          x-kubernetes-list-type: atomic
+                        matchLabels:
+                          type: object
+                          additionalProperties:
+                            type: string
+                      x-kubernetes-map-type: atomic
+                    poolKey:
+                      description: PoolKey is the node label key identifying a pool, used when Type is Pool.
+                      type: string
+                    poolValue:
+                      description: PoolValue is the node label value identifying a pool, used when Type is Pool.
+                      type: string
+                strategy:
+                  description: Strategy controls how nodes are grouped and sequenced.
+                  type: string
+                  default: Serial
+                  enum:
+                    - Serial
+                    - Batched
+                    - ByZone
+                    - ByPool
+                maxConcurrent:
+                  description: MaxConcurrent caps how many nodes are drained at once within a batch.
+                  type: integer
+                  format: int32
+                  default: 1
+                  minimum: 1
+                batchSize:
+                  description: BatchSize is the number of nodes per batch when Strategy is Batched.
+                  type: integer
+                  format: int32
+                  minimum: 1
+                drainTimeout:
+                  description: DrainTimeout bounds the drain of a single node; zero means use the controller default.
+                  type: string
+                globalTimeout:
+                  description: GlobalTimeout bounds the entire request; zero means use the controller default.
+                  type: string
+                uncordonAfter:
+                  description: UncordonAfter returns each node to service after a successful drain and post-check.
+                  type: boolean
+                  default: true
+                maintenanceWindow:
+                  description: MaintenanceWindow restricts mutation to a recurring time window.
+                  type: object
+                  required:
+                    - cron
+                    - duration
+                  properties:
+                    cron:
+                      description: Cron is a 5-field cron expression marking the START of the window.
+                      type: string
+                    duration:
+                      description: Duration is how long the window stays open after each start.
+                      type: string
+                    timeZone:
+                      description: TimeZone is an IANA name (e.g. "Europe/Rome"); empty means UTC.
+                      type: string
+                approval:
+                  description: Approval configures the manual-approval workflow.
+                  type: object
+                  required:
+                    - policy
+                  properties:
+                    policy:
+                      description: Policy selects which gates require a manual decision.
+                      type: string
+                      default: AutoApprove
+                      enum:
+                        - AutoApprove
+                        - ManualBeforeDrain
+                        - ManualBeforeUncordon
+                        - ManualBeforeBoth
+                    gates:
+                      description: Gates carries human decisions for the gates required by Policy.
+                      type: array
+                      items:
+                        type: object
+                        required:
+                          - decision
+                          - gate
+                        properties:
+                          gate:
+                            description: Gate identifies the checkpoint this decision applies to.
+                            type: string
+                            enum:
+                              - Drain
+                              - Uncordon
+                          decision:
+                            description: Decision is Approved or Rejected.
+                            type: string
+                            enum:
+                              - Approved
+                              - Rejected
+                          approvedBy:
+                            description: ApprovedBy identifies the user or system that recorded the decision.
+                            type: string
+                          reason:
+                            description: Reason is an optional free-text justification.
+                            type: string
+                          time:
+                            description: Time is when the decision was recorded.
+                            type: string
+                            format: date-time
+                pause:
+                  description: Pause requests the controller to hold execution at the next safe point.
+                  type: boolean
+                cancel:
+                  description: Cancel requests the controller to stop and finalize the request as Cancelled.
+                  type: boolean
+                policyRef:
+                  description: PolicyRef overrides the default cluster MaintenancePolicy for this request.
+                  type: object
+                  required:
+                    - name
+                  properties:
+                    name:
+                      description: Name is the cluster-scoped MaintenancePolicy name.
+                      type: string
+                allowControlPlane:
+                  description: AllowControlPlane opts this request out of control-plane protection.
+                  type: boolean
+                force:
+                  description: Force allows deletion-based eviction when policy-permitted.
+                  type: boolean
+            status:
+              description: MaintenanceStatus is the observed state of a MaintenanceRequest.
+              type: object
+              properties:
+                phase:
+                  description: Phase is the top-level state of the request.
+                  type: string
+                  enum:
+                    - Pending
+                    - Validating
+                    - AwaitingApproval
+                    - Planned
+                    - Executing
+                    - Paused
+                    - Blocked
+                    - Completed
+                    - Failed
+                    - Cancelled
+                conditions:
+                  description: Conditions are the detailed, machine-readable state transitions.
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - lastTransitionTime
+                      - message
+                      - reason
+                      - status
+                      - type
+                    properties:
+                      lastTransitionTime:
+                        type: string
+                        format: date-time
+                      message:
+                        type: string
+                        maxLength: 32768
+                      observedGeneration:
+                        type: integer
+                        format: int64
+                        minimum: 0
+                      reason:
+                        type: string
+                        maxLength: 1024
+                        minLength: 1
+                        pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      status:
+                        type: string
+                        enum:
+                          - "True"
+                          - "False"
+                          - Unknown
+                      type:
+                        type: string
+                        maxLength: 316
+                        pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                  x-kubernetes-list-map-keys:
+                    - type
+                  x-kubernetes-list-type: map
+                observedGeneration:
+                  type: integer
+                  format: int64
+                startTime:
+                  type: string
+                  format: date-time
+                completionTime:
+                  type: string
+                  format: date-time
+                approvalGate:
+                  type: string
+                  enum:
+                    - Drain
+                    - Uncordon
+                preflight:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - code
+                      - message
+                      - status
+                      - time
+                    properties:
+                      code:
+                        type: string
+                      node:
+                        type: string
+                      status:
+                        type: string
+                        enum:
+                          - Pass
+                          - Warn
+                          - Fail
+                      message:
+                        type: string
+                      details:
+                        type: object
+                        additionalProperties:
+                          type: string
+                      time:
+                        type: string
+                        format: date-time
+                plan:
+                  type: object
+                  required:
+                    - batches
+                    - generatedAt
+                    - impact
+                    - maxConcurrent
+                    - riskScore
+                    - strategy
+                    - totalNodes
+                  properties:
+                    strategy:
+                      type: string
+                      enum:
+                        - Serial
+                        - Batched
+                        - ByZone
+                        - ByPool
+                    batches:
+                      type: array
+                      items:
+                        type: object
+                        required:
+                          - index
+                          - nodes
+                        properties:
+                          index:
+                            type: integer
+                            format: int32
+                          group:
+                            type: string
+                          nodes:
+                            type: array
+                            items:
+                              type: string
+                    totalNodes:
+                      type: integer
+                      format: int32
+                    maxConcurrent:
+                      type: integer
+                      format: int32
+                    riskScore:
+                      type: integer
+                      format: int32
+                      minimum: 0
+                      maximum: 100
+                    riskFactors:
+                      type: array
+                      items:
+                        type: string
+                    impact:
+                      type: object
+                      required:
+                        - appsAffected
+                        - emptyDirPods
+                        - podsToEvict
+                        - singleReplicaWorkloads
+                      properties:
+                        podsToEvict:
+                          type: integer
+                          format: int32
+                        appsAffected:
+                          type: integer
+                          format: int32
+                        singleReplicaWorkloads:
+                          type: integer
+                          format: int32
+                        emptyDirPods:
+                          type: integer
+                          format: int32
+                    generatedAt:
+                      type: string
+                      format: date-time
+                nodes:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - batch
+                      - evictedPods
+                      - node
+                      - phase
+                      - remainingPods
+                      - totalPods
+                    properties:
+                      node:
+                        type: string
+                      phase:
+                        type: string
+                        enum:
+                          - Pending
+                          - Cordoning
+                          - Draining
+                          - PostCheck
+                          - Uncordoning
+                          - Completed
+                          - Blocked
+                          - Failed
+                          - Skipped
+                      batch:
+                        type: integer
+                        format: int32
+                      startTime:
+                        type: string
+                        format: date-time
+                      endTime:
+                        type: string
+                        format: date-time
+                      totalPods:
+                        type: integer
+                        format: int32
+                      evictedPods:
+                        type: integer
+                        format: int32
+                      remainingPods:
+                        type: integer
+                        format: int32
+                      blockReason:
+                        type: string
+                      message:
+                        type: string
+                summary:
+                  type: object
+                  required:
+                    - blocked
+                    - completed
+                    - failed
+                    - inProgress
+                    - pending
+                    - skipped
+                    - total
+                  properties:
+                    total:
+                      type: integer
+                      format: int32
+                    pending:
+                      type: integer
+                      format: int32
+                    inProgress:
+                      type: integer
+                      format: int32
+                    completed:
+                      type: integer
+                      format: int32
+                    blocked:
+                      type: integer
+                      format: int32
+                    failed:
+                      type: integer
+                      format: int32
+                    skipped:
+                      type: integer
+                      format: int32
+                message:
+                  type: string
+                lastError:
+                  type: string
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+
