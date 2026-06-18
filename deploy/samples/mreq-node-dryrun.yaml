@@ -1,0 +1,23 @@
+# Dry-run analysis of two explicit nodes: resolves targets, runs preflight and
+# produces an ExecutionPlan (with risk score and impact) in .status, then
+# completes WITHOUT mutating the cluster. Inspect with:
+#   kubectl get mreq node-dryrun -o yaml
+apiVersion: maintenance.platform.dev/v1alpha1
+kind: MaintenanceRequest
+metadata:
+  name: node-dryrun
+spec:
+  mode: DryRun
+  reason: "Pre-change impact analysis for kernel patch"
+  requestedBy: "alice@example.com"
+  target:
+    type: Node
+    nodeNames:
+      - worker-1
+      - worker-2
+  strategy: Serial
+  maxConcurrent: 1
+  uncordonAfter: true
+  approval:
+    policy: AutoApprove
+

@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/yourorg/maintenance-orchestrator/api/v1alpha1"
+	"github.com/Sindi98/maintenance-orchestrator/api/v1alpha1"
 )
 
 // transitions maps each phase to the phases it may move to. Staying in the same

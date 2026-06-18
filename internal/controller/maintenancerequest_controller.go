@@ -16,16 +16,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	"github.com/yourorg/maintenance-orchestrator/api/v1alpha1"
-	"github.com/yourorg/maintenance-orchestrator/internal/audit"
-	"github.com/yourorg/maintenance-orchestrator/internal/config"
-	"github.com/yourorg/maintenance-orchestrator/internal/executor"
-	"github.com/yourorg/maintenance-orchestrator/internal/kube"
-	"github.com/yourorg/maintenance-orchestrator/internal/metrics"
-	"github.com/yourorg/maintenance-orchestrator/internal/planner"
-	"github.com/yourorg/maintenance-orchestrator/internal/policy"
-	"github.com/yourorg/maintenance-orchestrator/internal/preflight"
-	"github.com/yourorg/maintenance-orchestrator/internal/statemachine"
+	"github.com/Sindi98/maintenance-orchestrator/api/v1alpha1"
+	"github.com/Sindi98/maintenance-orchestrator/internal/audit"
+	"github.com/Sindi98/maintenance-orchestrator/internal/config"
+	"github.com/Sindi98/maintenance-orchestrator/internal/executor"
+	"github.com/Sindi98/maintenance-orchestrator/internal/kube"
+	"github.com/Sindi98/maintenance-orchestrator/internal/metrics"
+	"github.com/Sindi98/maintenance-orchestrator/internal/planner"
+	"github.com/Sindi98/maintenance-orchestrator/internal/policy"
+	"github.com/Sindi98/maintenance-orchestrator/internal/preflight"
+	"github.com/Sindi98/maintenance-orchestrator/internal/statemachine"
 )
 
 // MaintenanceRequestReconciler drives a MaintenanceRequest through its lifecycle

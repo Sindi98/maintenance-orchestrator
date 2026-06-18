@@ -1,0 +1,39 @@
+# A stricter policy that hard-blocks "critical" nodes and tightens disruption.
+# Reference it from a request via spec.policyRef.name: protect-critical.
+#
+# Any target node carrying one of reservedNodeLabels or reservedTaints produces a
+# RESERVED_LABEL / RESERVED_TAINT preflight Fail, moving the request to Blocked.
+apiVersion: maintenance.platform.dev/v1alpha1
+kind: MaintenancePolicy
+metadata:
+  name: protect-critical
+spec:
+  protectControlPlane: true
+  controlPlaneNodeLabels:
+    - node-role.kubernetes.io/control-plane
+    - node-role.kubernetes.io/master
+  maxConcurrentDrains: 1
+  maxUnavailablePercent: 10
+  minCapacityHeadroomPercent: 25
+  allowForceEviction: false
+  defaultApprovalPolicy: ManualBeforeDrain
+  failureThreshold: 1
+  reservedNodeLabels:
+    - maintenance.platform.dev/critical
+    - workload.example.com/database
+  reservedTaints:
+    - dedicated
+  allowedWindows:
+    - cron: "0 2 * * 0"      # Sundays at 02:00
+      duration: 4h
+      timeZone: "Europe/Rome"
+  # Limit this policy's scope to production worker nodes.
+  nodeSelector:
+    matchLabels:
+      node-role.kubernetes.io/worker: ""
+    matchExpressions:
+      - key: environment
+        operator: In
+        values:
+          - production
+

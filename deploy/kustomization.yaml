@@ -1,0 +1,14 @@
+# Aggregate everything needed to run the controller:
+#   kubectl apply -k deploy
+#
+# The default cluster policy and the MaintenanceRequest samples are intentionally
+# NOT included here (they are CRs that require the CRDs to be established first).
+# After applying this, create the policy:
+#   kubectl apply -f deploy/samples/policy-cluster-default.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - crd
+  - rbac
+  - manager
+

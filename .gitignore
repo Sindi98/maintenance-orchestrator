@@ -1,0 +1,23 @@
+# Binaries & build output
+/bin/
+manager
+*.exe
+*.test
+*.out
+cover.out
+dist/
+
+# Go workspace files
+go.work
+go.work.sum
+
+# Local config overrides (keep hack/config.local.yaml tracked)
+*.local.env
+
+# OS / editor cruft
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
+

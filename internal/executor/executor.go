@@ -13,8 +13,8 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/yourorg/maintenance-orchestrator/api/v1alpha1"
-	"github.com/yourorg/maintenance-orchestrator/internal/kube"
+	"github.com/Sindi98/maintenance-orchestrator/api/v1alpha1"
+	"github.com/Sindi98/maintenance-orchestrator/internal/kube"
 )
 
 // stuckGraceSlack is added on top of a pod's deletion grace period before we

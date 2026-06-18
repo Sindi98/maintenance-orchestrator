@@ -1,0 +1,19 @@
+# Keep the image build context minimal. The Dockerfile only needs go.mod/go.sum
+# and the cmd/, api/ and internal/ source trees.
+.git/
+.github/
+.idea/
+.vscode/
+bin/
+dist/
+deploy/
+docs/
+hack/
+*.md
+.gitignore
+.dockerignore
+.DS_Store
+cover.out
+*.test
+*.out
+

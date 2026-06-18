@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Lint, vet & unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Resolve dependencies (produces go.sum)
+        run: go mod tidy
+      - name: gofmt
+        run: |
+          out="$(gofmt -l .)"
+          if [ -n "$out" ]; then echo "::error::unformatted files:"; echo "$out"; exit 1; fi
+      - name: go vet
+        run: go vet ./...
+      - name: Unit tests
+        run: go test ./... -coverprofile=cover.out -count=1
+      - name: Build manager
+        run: go build -o bin/manager ./cmd/manager
+
+  integration:
+    name: envtest integration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: go mod tidy
+      - name: envtest reconciler tests
+        run: make test-integration
+
+  image:
+    name: Container image (build only)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Produce go.sum for the build context
+        run: go mod tidy
+      - name: docker build (no push)
+        run: docker build -t maintenance-orchestrator:ci .
+

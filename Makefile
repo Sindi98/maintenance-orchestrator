@@ -32,6 +32,15 @@ tidy: ## Tidy modules (generates go.sum and indirect requires)
 test: fmt vet ## Run unit tests with coverage
 	go test ./... -coverprofile cover.out -count=1
 
+# envtest provisions a real kube-apiserver/etcd for integration tests.
+ENVTEST_K8S_VERSION ?= 1.30.0
+ENVTEST ?= go run sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+
+.PHONY: test-integration
+test-integration: fmt vet ## Run envtest integration tests (downloads envtest binaries)
+	KUBEBUILDER_ASSETS="$$($(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" \
+		go test ./internal/controller/... -count=1
+
 .PHONY: build
 build: fmt vet ## Build the manager binary into bin/
 	go build -o bin/manager ./cmd/manager

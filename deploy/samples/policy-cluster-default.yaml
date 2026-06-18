@@ -1,0 +1,20 @@
+# Default cluster guardrails. The controller uses the policy named by
+# config.defaultPolicyName ("cluster-default") for requests without a policyRef.
+apiVersion: maintenance.platform.dev/v1alpha1
+kind: MaintenancePolicy
+metadata:
+  name: cluster-default
+spec:
+  protectControlPlane: true
+  controlPlaneNodeLabels:
+    - node-role.kubernetes.io/control-plane
+    - node-role.kubernetes.io/master
+  maxConcurrentDrains: 1
+  maxUnavailablePercent: 20
+  minCapacityHeadroomPercent: 15
+  allowForceEviction: false
+  defaultApprovalPolicy: AutoApprove
+  failureThreshold: 1
+  # No allowedWindows => maintenance is permitted at any time unless a request
+  # defines its own maintenanceWindow.
+

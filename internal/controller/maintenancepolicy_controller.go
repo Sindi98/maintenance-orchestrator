@@ -13,9 +13,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	"github.com/yourorg/maintenance-orchestrator/api/v1alpha1"
-	"github.com/yourorg/maintenance-orchestrator/internal/config"
-	"github.com/yourorg/maintenance-orchestrator/internal/window"
+	"github.com/Sindi98/maintenance-orchestrator/api/v1alpha1"
+	"github.com/Sindi98/maintenance-orchestrator/internal/config"
+	"github.com/Sindi98/maintenance-orchestrator/internal/window"
 )
 
 // MaintenancePolicyReconciler validates MaintenancePolicy objects and reports

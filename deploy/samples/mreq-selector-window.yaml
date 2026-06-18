@@ -1,0 +1,39 @@
+# Batched maintenance of nodes matched by an advanced label selector, two at a
+# time, within a nightly window. Auto-approved. The effective per-batch
+# concurrency is min(spec.maxConcurrent, policy.maxConcurrentDrains), so with the
+# cluster-default policy (maxConcurrentDrains: 1) this still drains one at a time
+# unless a more permissive policy is referenced.
+apiVersion: maintenance.platform.dev/v1alpha1
+kind: MaintenanceRequest
+metadata:
+  name: selector-window
+spec:
+  mode: Execute
+  reason: "Node image refresh for the batch tier"
+  requestedBy: "platform-team@example.com"
+  target:
+    type: NodeSelector
+    selector:
+      matchLabels:
+        node-role.kubernetes.io/worker: ""
+      matchExpressions:
+        - key: tier
+          operator: In
+          values:
+            - batch
+        - key: topology.kubernetes.io/zone
+          operator: In
+          values:
+            - eu-west-1a
+            - eu-west-1b
+  strategy: Batched
+  batchSize: 2
+  maxConcurrent: 2
+  uncordonAfter: true
+  approval:
+    policy: AutoApprove
+  maintenanceWindow:
+    cron: "0 1 * * *"        # every day at 01:00
+    duration: 3h
+    timeZone: "UTC"
+

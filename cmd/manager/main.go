@@ -12,11 +12,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
-	maintenancev1alpha1 "github.com/yourorg/maintenance-orchestrator/api/v1alpha1"
-	"github.com/yourorg/maintenance-orchestrator/internal/config"
-	"github.com/yourorg/maintenance-orchestrator/internal/controller"
-	"github.com/yourorg/maintenance-orchestrator/internal/logging"
-	"github.com/yourorg/maintenance-orchestrator/internal/metrics"
+	maintenancev1alpha1 "github.com/Sindi98/maintenance-orchestrator/api/v1alpha1"
+	"github.com/Sindi98/maintenance-orchestrator/internal/config"
+	"github.com/Sindi98/maintenance-orchestrator/internal/controller"
+	"github.com/Sindi98/maintenance-orchestrator/internal/logging"
+	"github.com/Sindi98/maintenance-orchestrator/internal/metrics"
 )
 
 var scheme = runtime.NewScheme()

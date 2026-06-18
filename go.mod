@@ -1,4 +1,4 @@
-module github.com/yourorg/maintenance-orchestrator
+module github.com/Sindi98/maintenance-orchestrator
 
 go 1.22.0
 

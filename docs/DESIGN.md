@@ -468,7 +468,7 @@ spec:
   audit/log, non nel CR.
 - **Approvazioni dichiarative**: via `patch` su `spec.approval.gates`; un companion REST
   è opzionale e fuori scope di v1alpha1.
-- **Module path** `github.com/yourorg/maintenance-orchestrator` mantenuto dallo scaffold.
+- **Module path** `github.com/Sindi98/maintenance-orchestrator` mantenuto dallo scaffold.
 
 ---
 

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yourorg/maintenance-orchestrator/api/v1alpha1"
+	"github.com/Sindi98/maintenance-orchestrator/api/v1alpha1"
 )
 
 // maxLookaheadMinutes bounds NextOpen scanning to roughly one year.

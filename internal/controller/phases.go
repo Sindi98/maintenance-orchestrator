@@ -10,13 +10,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/yourorg/maintenance-orchestrator/api/v1alpha1"
-	"github.com/yourorg/maintenance-orchestrator/internal/approval"
-	"github.com/yourorg/maintenance-orchestrator/internal/audit"
-	"github.com/yourorg/maintenance-orchestrator/internal/metrics"
-	"github.com/yourorg/maintenance-orchestrator/internal/planner"
-	"github.com/yourorg/maintenance-orchestrator/internal/policy"
-	"github.com/yourorg/maintenance-orchestrator/internal/preflight"
+	"github.com/Sindi98/maintenance-orchestrator/api/v1alpha1"
+	"github.com/Sindi98/maintenance-orchestrator/internal/approval"
+	"github.com/Sindi98/maintenance-orchestrator/internal/audit"
+	"github.com/Sindi98/maintenance-orchestrator/internal/metrics"
+	"github.com/Sindi98/maintenance-orchestrator/internal/planner"
+	"github.com/Sindi98/maintenance-orchestrator/internal/policy"
+	"github.com/Sindi98/maintenance-orchestrator/internal/preflight"
 )
 
 // reconcileValidating resolves the target, runs preflight, builds the plan and

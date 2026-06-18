@@ -14,9 +14,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 
-	"github.com/yourorg/maintenance-orchestrator/api/v1alpha1"
-	"github.com/yourorg/maintenance-orchestrator/internal/kube"
-	"github.com/yourorg/maintenance-orchestrator/internal/policy"
+	"github.com/Sindi98/maintenance-orchestrator/api/v1alpha1"
+	"github.com/Sindi98/maintenance-orchestrator/internal/kube"
+	"github.com/Sindi98/maintenance-orchestrator/internal/policy"
 )
 
 // Planner builds execution plans.

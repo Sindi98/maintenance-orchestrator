@@ -14,9 +14,9 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/yourorg/maintenance-orchestrator/api/v1alpha1"
-	"github.com/yourorg/maintenance-orchestrator/internal/approval"
-	"github.com/yourorg/maintenance-orchestrator/internal/kube"
+	"github.com/Sindi98/maintenance-orchestrator/api/v1alpha1"
+	"github.com/Sindi98/maintenance-orchestrator/internal/approval"
+	"github.com/Sindi98/maintenance-orchestrator/internal/kube"
 )
 
 // Conservative default guardrail values used when a MaintenancePolicy omits a

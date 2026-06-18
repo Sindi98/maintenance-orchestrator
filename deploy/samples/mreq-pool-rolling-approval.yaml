@@ -1,0 +1,39 @@
+# Rolling maintenance of an OpenShift MachineSet pool, one node at a time, gated
+# by manual approval before any drain and constrained to a weekend window.
+#
+# Approve the drain gate:
+#   oc patch mreq pool-rolling-approval --type=merge \
+#     -p '{"spec":{"approval":{"gates":[{"gate":"Drain","decision":"Approved","approvedBy":"sre@example.com"}]}}}'
+# Reject instead:
+#   oc patch mreq pool-rolling-approval --type=merge \
+#     -p '{"spec":{"approval":{"gates":[{"gate":"Drain","decision":"Rejected","approvedBy":"sre@example.com"}]}}}'
+# Pause / resume / cancel:
+#   kubectl patch mreq pool-rolling-approval --type=merge -p '{"spec":{"pause":true}}'
+#   kubectl patch mreq pool-rolling-approval --type=merge -p '{"spec":{"pause":false}}'
+#   kubectl patch mreq pool-rolling-approval --type=merge -p '{"spec":{"cancel":true}}'
+apiVersion: maintenance.platform.dev/v1alpha1
+kind: MaintenanceRequest
+metadata:
+  name: pool-rolling-approval
+spec:
+  mode: Execute
+  reason: "Kernel CVE-2025-XXXX remediation"
+  requestedBy: "sre@example.com"
+  target:
+    type: Pool
+    poolKey: "machine.openshift.io/cluster-api-machineset"
+    poolValue: "ocp-prod-worker-a"
+  strategy: ByPool
+  maxConcurrent: 1
+  uncordonAfter: true
+  drainTimeout: 20m
+  globalTimeout: 6h
+  approval:
+    policy: ManualBeforeDrain
+  maintenanceWindow:
+    cron: "0 2 * * 6"        # Saturdays at 02:00
+    duration: 4h
+    timeZone: "Europe/Rome"
+  policyRef:
+    name: cluster-default
+
