@@ -1,0 +1,4 @@
+/*
+Copyright 2026 the maintenance-orchestrator authors.
+SPDX-License-Identifier: Apache-2.0
+*/

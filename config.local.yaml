@@ -1,0 +1,13 @@
+# Local development config for `make run`.
+# Disables leader election and uses human-readable console logging.
+metricsAddr: ":8080"
+probeAddr: ":8081"
+leaderElection: false
+logLevel: "debug"
+logFormat: "console"
+enableK8sEvents: false
+defaultPolicyName: "cluster-default"
+evictionPollInterval: "3s"
+globalRequeueInterval: "15s"
+defaultDrainTimeout: "10m"
+defaultGlobalTimeout: "1h"
