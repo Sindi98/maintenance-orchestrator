@@ -127,4 +127,3 @@ func TestApprovalPolicyResolution(t *testing.T) {
 		t.Errorf("request override = %q, want ManualBeforeBoth", got)
 	}
 }
-

@@ -98,4 +98,3 @@ func TestDecisionForNone(t *testing.T) {
 		t.Error("expected no decision for empty spec")
 	}
 }
-

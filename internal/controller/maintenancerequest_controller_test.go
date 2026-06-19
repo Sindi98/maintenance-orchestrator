@@ -151,4 +151,3 @@ func TestDryRunReconcileCompletes(t *testing.T) {
 	}
 	t.Fatalf("timed out waiting for Completed; last phase=%q", got.Status.Phase)
 }
-

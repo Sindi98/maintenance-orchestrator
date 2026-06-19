@@ -348,4 +348,3 @@ func (r *MaintenanceRequestReconciler) observeDrainDuration(ns *v1alpha1.NodeExe
 	}
 	metrics.DrainDurationSeconds.WithLabelValues(result).Observe(time.Since(ns.StartTime.Time).Seconds())
 }
-

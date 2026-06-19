@@ -1,0 +1,19 @@
+# Manager base: the always-applicable cluster resources for the controller.
+# Referenced by the top-level deploy/kustomization.yaml so that
+# `kubectl apply -k deploy` installs CRDs, RBAC and the manager in one shot.
+#
+# networkpolicy.yaml and servicemonitor.yaml are intentionally NOT included:
+#   - the ServiceMonitor requires the Prometheus Operator CRDs to be installed
+#     first, so bundling it would break the apply on clusters without them;
+#   - the NetworkPolicy is environment-specific (it depends on a CNI that
+#     enforces policies and on your monitoring namespace).
+# Apply them explicitly when wanted, e.g.:
+#   kubectl apply -f deploy/manager/networkpolicy.yaml
+#   kubectl apply -f deploy/manager/servicemonitor.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - deployment.yaml
+  - service.yaml

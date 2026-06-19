@@ -358,6 +358,3 @@ func truncate(results []v1alpha1.PreflightCheckResult) []v1alpha1.PreflightCheck
 func podKey(pod *corev1.Pod) string {
 	return pod.Namespace + "/" + pod.Name
 }
-
-
-

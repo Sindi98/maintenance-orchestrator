@@ -113,4 +113,3 @@ func TestScore(t *testing.T) {
 		t.Errorf("higher concurrency should raise score: low=%d high=%d", low, high)
 	}
 }
-

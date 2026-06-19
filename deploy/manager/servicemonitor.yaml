@@ -1,0 +1,34 @@
+# Optional Prometheus Operator ServiceMonitor for the controller metrics.
+#
+# Requires the Prometheus Operator CRDs (monitoring.coreos.com/v1) to be present
+# in the cluster. It selects the metrics Service (service.yaml) and scrapes its
+# `metrics` port at /metrics.
+#
+# Make sure your Prometheus instance's serviceMonitorSelector matches the labels
+# below (or set spec.serviceMonitorSelector: {} to select all). On OpenShift
+# user-workload-monitoring, enable that monitoring stack first.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: maintenance-orchestrator
+  namespace: maintenance-orchestrator-system
+  labels:
+    app.kubernetes.io/name: maintenance-orchestrator
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/part-of: maintenance-orchestrator
+    # Common discovery label; adjust to your Prometheus serviceMonitorSelector.
+    release: prometheus
+spec:
+  namespaceSelector:
+    matchNames:
+      - maintenance-orchestrator-system
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: maintenance-orchestrator
+      app.kubernetes.io/component: controller
+  endpoints:
+    - port: metrics
+      path: /metrics
+      scheme: http
+      interval: 30s
+      scrapeTimeout: 10s
