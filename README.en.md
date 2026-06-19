@@ -300,7 +300,7 @@ Each check produces a `status` (Pass/Warn/Fail), a `code` and structured details
 | `DAEMONSET_PODS` | Pass | DaemonSets ignored (like `kubectl drain`) |
 | `STATIC_POD` | Warn | static/mirror pod, not evictable |
 | `INSUFFICIENT_CAPACITY` | Fail | estimated headroom below threshold |
-| `TOO_MANY_UNAVAILABLE` | Fail | would exceed the unschedulable cap |
+| `TOO_MANY_UNAVAILABLE` | Fail | peak simultaneous unavailability (concurrency, if uncordon) would exceed the cap |
 | `WINDOW_CLOSED` | Warn | outside the maintenance window |
 | `MCO_MANAGED` | Warn | node being reconfigured by MCO (will be `Skipped`) |
 

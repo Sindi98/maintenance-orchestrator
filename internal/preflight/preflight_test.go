@@ -190,3 +190,64 @@ func TestWindowsOpen(t *testing.T) {
 		t.Error("no windows should be always open")
 	}
 }
+
+func hasCode(results []v1alpha1.PreflightCheckResult, code string) bool {
+	for i := range results {
+		if results[i].Code == code {
+			return true
+		}
+	}
+	return false
+}
+
+// TestUnavailabilityConcurrencyAware checks that a one-at-a-time rolling drain of
+// a whole pool (uncordonAfter=true, maxConcurrent=1) is NOT blocked by a cap that
+// only allows one unavailable node, because the peak simultaneous unavailability
+// is the concurrency, not the whole scope. The same request WITHOUT uncordon is
+// evaluated by the whole scope and IS blocked.
+func TestUnavailabilityConcurrencyAware(t *testing.T) {
+	w1 := mkNode("w1", nil, true, false)
+	w2 := mkNode("w2", nil, true, false)
+	w3 := mkNode("w3", nil, true, false)
+	nodes := []corev1.Node{*w1, *w2, *w3}
+	eng := newEngine(t, w1, w2, w3)
+
+	// 33% of 3 nodes => limit 1.
+	pol := &policy.Effective{Spec: policy.WithDefaults(v1alpha1.MaintenancePolicySpec{
+		MaxUnavailablePercent: 33,
+	})}
+	if got := pol.MaxUnavailable(3); got != 1 {
+		t.Fatalf("precondition: MaxUnavailable(3) = %d, want 1", got)
+	}
+
+	run := func(uncordon bool, concurrency int32) []v1alpha1.PreflightCheckResult {
+		mr := &v1alpha1.MaintenanceRequest{Spec: v1alpha1.MaintenanceSpec{
+			Mode:          v1alpha1.ModeExecute,
+			Strategy:      v1alpha1.StrategySerial,
+			MaxConcurrent: concurrency,
+			UncordonAfter: uncordon,
+			Approval:      v1alpha1.ApprovalSpec{Policy: v1alpha1.ApprovalAuto},
+		}}
+		results, err := eng.Run(context.Background(), preflight.Input{
+			Request: mr, Policy: pol, Nodes: nodes, Universe: nodes, Now: time.Now(),
+		})
+		if err != nil {
+			t.Fatalf("Run: %v", err)
+		}
+		return results
+	}
+
+	// Rolling, one at a time, returning nodes to service: peak unavailability is 1
+	// (the concurrency), within the limit of 1 => no TOO_MANY_UNAVAILABLE.
+	if got := run(true, 1); hasCode(got, v1alpha1.CodeTooManyUnavailable) {
+		t.Error("serial rolling drain with uncordon must not be blocked by the unavailability cap")
+	}
+
+	// Same scope but the nodes stay cordoned: they accumulate to 3/3 unavailable,
+	// exceeding the limit of 1 => blocked.
+	res := run(false, 1)
+	if !hasCode(res, v1alpha1.CodeTooManyUnavailable) {
+		t.Error("non-uncordoning whole-pool drain must trip the unavailability cap")
+	}
+	mustCode(t, res, v1alpha1.CodeTooManyUnavailable, v1alpha1.CheckFail)
+}

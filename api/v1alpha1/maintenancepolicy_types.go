@@ -29,8 +29,12 @@ type MaintenancePolicySpec struct {
 	// +kubebuilder:validation:Minimum=0
 	MaxUnavailableNodes int32 `json:"maxUnavailableNodes,omitempty"`
 
-	// MaxUnavailablePercent caps unavailable matched nodes as a percentage.
-	// Zero disables the percentage cap.
+	// MaxUnavailablePercent caps unavailable matched nodes as a percentage. The
+	// preflight check compares this against the PEAK simultaneous unavailability,
+	// i.e. the per-batch concurrency for requests that uncordon, so a one-at-a-time
+	// rolling drain of a whole pool is not blocked by a small cap. On a policy
+	// object zero disables the percentage cap; the built-in default when no policy
+	// exists is 33. Set 100 to allow the whole scope (effectively uncapped).
 	// +optional
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=100

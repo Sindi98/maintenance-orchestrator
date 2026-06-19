@@ -220,7 +220,17 @@ func (e *Engine) checkCapacity(
 	}
 }
 
-// checkUnavailability enforces the max-unavailable guardrail over the scope universe.
+// checkUnavailability enforces the max-unavailable guardrail over the scope
+// universe. It compares the policy limit against the PEAK number of nodes this
+// request leaves unavailable at the same time, not its whole target scope:
+//
+//   - When the request returns nodes to service (UncordonAfter), only the
+//     effective per-batch concurrency is ever cordoned at once, so a Serial or
+//     Batched rolling maintenance is evaluated by that peak. This lets a
+//     one-at-a-time rolling drain of a whole pool pass a small limit, which the
+//     executor's concurrency control already enforces at runtime.
+//   - When the request does NOT uncordon, cordoned nodes accumulate over its
+//     lifetime, so the peak is the whole target scope (the conservative case).
 func (e *Engine) checkUnavailability(
 	in Input,
 	add func(code, node string, status v1alpha1.CheckStatus, msg string, details map[string]string),
@@ -245,14 +255,23 @@ func (e *Engine) checkUnavailability(
 			willAdd++
 		}
 	}
+
+	peak := willAdd
+	if in.Request.Spec.UncordonAfter {
+		if concurrency := in.Policy.Concurrency(in.Request.Spec.MaxConcurrent); concurrency < peak {
+			peak = concurrency
+		}
+	}
+
 	limit := in.Policy.MaxUnavailable(total)
-	if already+willAdd > limit {
+	if already+peak > limit {
 		add(v1alpha1.CodeTooManyUnavailable, "", v1alpha1.CheckFail,
-			fmt.Sprintf("draining %d node(s) would make %d/%d unavailable, exceeding the limit of %d",
-				willAdd, already+willAdd, total, limit),
+			fmt.Sprintf("this request would leave up to %d/%d node(s) unavailable at once (%d already cordoned), exceeding the limit of %d",
+				already+peak, total, already, limit),
 			map[string]string{
 				"alreadyUnavailable": strconv.Itoa(int(already)),
-				"requested":          strconv.Itoa(int(willAdd)),
+				"peakConcurrent":     strconv.Itoa(int(peak)),
+				"targeted":           strconv.Itoa(int(willAdd)),
 				"total":              strconv.Itoa(int(total)),
 				"limit":              strconv.Itoa(int(limit)),
 			})

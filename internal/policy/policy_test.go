@@ -36,6 +36,22 @@ func TestWithDefaults(t *testing.T) {
 	}
 }
 
+func TestDefaultSpecUnavailableFloor(t *testing.T) {
+	// When no policy object exists, the built-in fallback caps the blast radius
+	// at the default percentage.
+	if got := policy.DefaultSpec().MaxUnavailablePercent; got != policy.DefaultMaxUnavailablePercent {
+		t.Errorf("DefaultSpec().MaxUnavailablePercent = %d, want %d", got, policy.DefaultMaxUnavailablePercent)
+	}
+	e := &policy.Effective{Spec: policy.WithDefaults(policy.DefaultSpec())}
+	if !e.UnavailabilityCapped() {
+		t.Error("built-in default policy must be unavailability-capped")
+	}
+	// An explicit policy that declares no cap stays uncapped (opt-in semantics).
+	if (&policy.Effective{Spec: policy.WithDefaults(v1alpha1.MaintenancePolicySpec{})}).UnavailabilityCapped() {
+		t.Error("an explicit policy with no caps must remain uncapped")
+	}
+}
+
 func TestControlPlaneBlocked(t *testing.T) {
 	protected := eff(v1alpha1.MaintenancePolicySpec{ProtectControlPlane: true})
 	if !protected.ControlPlaneBlocked(false) {
