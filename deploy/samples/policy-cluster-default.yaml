@@ -10,7 +10,10 @@ spec:
     - node-role.kubernetes.io/control-plane
     - node-role.kubernetes.io/master
   maxConcurrentDrains: 1
-  maxUnavailablePercent: 20
+  # Peak simultaneous unavailability cap. The preflight evaluates this against the
+  # per-batch concurrency for requests that uncordon, so a one-at-a-time rolling
+  # drain of a whole pool is not blocked. Set 100 to effectively disable.
+  maxUnavailablePercent: 33
   minCapacityHeadroomPercent: 15
   allowForceEviction: false
   defaultApprovalPolicy: AutoApprove

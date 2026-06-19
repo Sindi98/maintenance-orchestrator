@@ -24,6 +24,11 @@ import (
 const (
 	DefaultMaxConcurrentDrains int32 = 1
 	DefaultFailureThreshold    int32 = 1
+	// DefaultMaxUnavailablePercent is the blast-radius cap applied when NO policy
+	// object exists in the cluster. Combined with the concurrency-aware
+	// unavailability check, a one-at-a-time rolling drain still passes; it mainly
+	// bounds wide, non-uncordoning requests.
+	DefaultMaxUnavailablePercent int32 = 33
 )
 
 // DefaultControlPlaneLabels identify control-plane nodes when a policy omits them.
@@ -39,6 +44,7 @@ func DefaultSpec() v1alpha1.MaintenancePolicySpec {
 		ProtectControlPlane:    true,
 		ControlPlaneNodeLabels: append([]string(nil), DefaultControlPlaneLabels...),
 		MaxConcurrentDrains:    DefaultMaxConcurrentDrains,
+		MaxUnavailablePercent:  DefaultMaxUnavailablePercent,
 		AllowForceEviction:     false,
 		DefaultApprovalPolicy:  v1alpha1.ApprovalAuto,
 		FailureThreshold:       DefaultFailureThreshold,

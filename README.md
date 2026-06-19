@@ -218,7 +218,7 @@ Ogni check produce `status` (Pass/Warn/Fail), un `code` e dettagli strutturati.
 | `DAEMONSET_PODS` | Pass | DaemonSet ignorati (come `kubectl drain`) |
 | `STATIC_POD` | Warn | static/mirror pod non evacuabili |
 | `INSUFFICIENT_CAPACITY` | Fail | headroom stimato sotto soglia |
-| `TOO_MANY_UNAVAILABLE` | Fail | supererebbe il cap di non-schedulabili |
+| `TOO_MANY_UNAVAILABLE` | Fail | il picco simultaneo (concorrenza, se uncordon) supererebbe il cap |
 | `WINDOW_CLOSED` | Warn | fuori finestra di manutenzione |
 | `MCO_MANAGED` | Warn | nodo in aggiornamento MCO (sara `Skipped`) |
 Un solo `Fail` porta la richiesta in `Blocked` (in `Execute`).
