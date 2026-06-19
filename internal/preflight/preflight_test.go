@@ -190,4 +190,3 @@ func TestWindowsOpen(t *testing.T) {
 		t.Error("no windows should be always open")
 	}
 }
-

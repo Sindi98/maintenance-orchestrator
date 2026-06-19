@@ -92,4 +92,3 @@ func (r *MaintenanceRequestReconciler) resolvePool(ctx context.Context, key, val
 func sortNodes(nodes []corev1.Node) {
 	sort.Slice(nodes, func(i, j int) bool { return nodes[i].Name < nodes[j].Name })
 }
-

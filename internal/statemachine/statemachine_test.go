@@ -98,4 +98,3 @@ func TestTerminalPhasesHaveNoOutgoing(t *testing.T) {
 		}
 	}
 }
-

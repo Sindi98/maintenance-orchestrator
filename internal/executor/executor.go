@@ -201,4 +201,3 @@ func terminatingTooLong(pod *corev1.Pod, now time.Time) bool {
 	deadline := pod.DeletionTimestamp.Add(time.Duration(grace)*time.Second + stuckGraceSlack)
 	return now.After(deadline)
 }
-

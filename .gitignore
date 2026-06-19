@@ -1,6 +1,8 @@
 # Binaries & build output
 /bin/
-manager
+# Anchored to the repo root so it only ignores the compiled manager binary,
+# NOT the deploy/manager/ manifests directory.
+/manager
 *.exe
 *.test
 *.out

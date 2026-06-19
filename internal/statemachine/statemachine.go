@@ -138,4 +138,3 @@ func AllowedFrom(p v1alpha1.Phase) []v1alpha1.Phase {
 	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
 	return out
 }
-

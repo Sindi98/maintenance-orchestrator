@@ -24,14 +24,20 @@ type MaintenanceSpec struct {
 	Target TargetRef `json:"target"`
 
 	// Strategy controls how nodes are grouped and sequenced.
+	// omitempty lets the apiserver apply the default when the field is omitted by
+	// a typed client (which would otherwise send "" and fail the enum).
+	// +optional
 	// +kubebuilder:default=Serial
-	Strategy Strategy `json:"strategy"`
+	Strategy Strategy `json:"strategy,omitempty"`
 
 	// MaxConcurrent caps how many nodes are drained at once within a batch.
 	// The cluster-wide MaintenancePolicy.MaxConcurrentDrains still applies on top.
+	// omitempty lets the apiserver apply the default when the field is omitted by
+	// a typed client (which would otherwise send 0 and fail the minimum).
+	// +optional
 	// +kubebuilder:default=1
 	// +kubebuilder:validation:Minimum=1
-	MaxConcurrent int32 `json:"maxConcurrent"`
+	MaxConcurrent int32 `json:"maxConcurrent,omitempty"`
 
 	// BatchSize is the number of nodes per batch when Strategy is Batched.
 	// +optional

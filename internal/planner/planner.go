@@ -259,4 +259,3 @@ func group(nodes []corev1.Node, keyFn func(*corev1.Node) string) []v1alpha1.Batc
 	}
 	return batches
 }
-

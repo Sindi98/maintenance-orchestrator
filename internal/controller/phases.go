@@ -307,4 +307,3 @@ func planFields(plan *v1alpha1.ExecutionPlan) map[string]string {
 		"podsToEvict":   strconv.Itoa(int(plan.Impact.PodsToEvict)),
 	}
 }
-

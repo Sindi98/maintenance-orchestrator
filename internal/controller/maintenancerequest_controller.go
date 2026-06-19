@@ -312,4 +312,3 @@ func canPause(p v1alpha1.Phase) bool {
 		return false
 	}
 }
-

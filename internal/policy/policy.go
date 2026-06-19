@@ -208,4 +208,3 @@ func (e *Effective) ScopeSelector() (labels.Selector, error) {
 	}
 	return metav1.LabelSelectorAsSelector(e.Spec.NodeSelector)
 }
-

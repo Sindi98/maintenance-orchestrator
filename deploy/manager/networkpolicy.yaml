@@ -1,0 +1,52 @@
+# Optional NetworkPolicy for the maintenance-orchestrator controller.
+#
+# It requires a CNI that enforces NetworkPolicies (Calico, Cilium, OVN-Kubernetes,
+# ...). On clusters without enforcement it is accepted but has no effect.
+#
+# Intent:
+#   - Ingress: only the metrics (8080) and health (8081) ports are reachable.
+#     Health probes originate from the kubelet, so no source restriction is
+#     applied; tighten `metrics` to your monitoring namespace if desired.
+#   - Egress: restricted to DNS and the Kubernetes API server. The controller
+#     only ever talks to the API server, so no other egress is required.
+#
+# NOTE: the API server is reached on different ports across distributions
+# (443 via the in-cluster `kubernetes` Service, 6443 on many on-prem/OpenShift
+# clusters). Both are allowed below; trim to match your environment.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: maintenance-orchestrator
+  namespace: maintenance-orchestrator-system
+  labels:
+    app.kubernetes.io/name: maintenance-orchestrator
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/part-of: maintenance-orchestrator
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: maintenance-orchestrator
+      app.kubernetes.io/component: controller
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Scrape and probe traffic to the controller's HTTP listeners.
+    - ports:
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 8081
+  egress:
+    # Cluster DNS resolution.
+    - ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Kubernetes API server (watch/list/patch/evict).
+    - ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 6443
