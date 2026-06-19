@@ -222,14 +222,18 @@ cluster. `kind` creates one using Docker Desktop's Docker: no extra VMs.
 ### 4.1 Crea il cluster / Create the cluster
 
 ```bash
-cat <<EOF | kind create cluster --name mo-demo --config -
+cat <<EOF | kind create cluster --name mo-demo --config -                                          ─╯
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 nodes:
   - role: control-plane
+    image: kindest/node:v1.29.4
   - role: worker
+    image: kindest/node:v1.29.4
   - role: worker
+    image: kindest/node:v1.29.4
   - role: worker
+    image: kindest/node:v1.29.4
 EOF
 
 kubectl config use-context kind-mo-demo
