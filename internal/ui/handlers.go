@@ -11,6 +11,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/Sindi98/maintenance-orchestrator/api/v1alpha1"
 )
@@ -178,23 +179,18 @@ func (s *Server) getRequest(ctx context.Context, name string) (*v1alpha1.Mainten
 	return mr, nil
 }
 
-// mutate applies fn to the named request with optimistic-conflict retries.
+// mutate applies fn to the named request's spec via a merge patch. A merge patch
+// carries no resourceVersion precondition, so the action succeeds even while the
+// controller is rapidly updating .status — a full Update would otherwise lose the
+// optimistic-lock race and fail with conflicts.
 func (s *Server) mutate(ctx context.Context, name string, fn func(*v1alpha1.MaintenanceRequest)) error {
-	for i := 0; i < 4; i++ {
-		mr := &v1alpha1.MaintenanceRequest{}
-		if err := s.client.Get(ctx, types.NamespacedName{Name: name}, mr); err != nil {
-			return err
-		}
-		fn(mr)
-		if err := s.client.Update(ctx, mr); err != nil {
-			if apierrors.IsConflict(err) {
-				continue
-			}
-			return err
-		}
-		return nil
+	mr := &v1alpha1.MaintenanceRequest{}
+	if err := s.client.Get(ctx, types.NamespacedName{Name: name}, mr); err != nil {
+		return err
 	}
-	return fmt.Errorf("could not update %q after retries (conflicts)", name)
+	patch := client.MergeFrom(mr.DeepCopy())
+	fn(mr)
+	return s.client.Patch(ctx, mr, patch)
 }
 
 func applyAction(mr *v1alpha1.MaintenanceRequest, a action, gate v1alpha1.Gate, by string) {

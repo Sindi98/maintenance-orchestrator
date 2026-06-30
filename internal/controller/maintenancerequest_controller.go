@@ -11,10 +11,12 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/Sindi98/maintenance-orchestrator/api/v1alpha1"
 	"github.com/Sindi98/maintenance-orchestrator/internal/audit"
@@ -157,7 +159,13 @@ func (r *MaintenanceRequestReconciler) SetupWithManager(mgr ctrl.Manager) error 
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&v1alpha1.MaintenanceRequest{}).
+		// Only react to spec changes (generation bumps) and our own requeues, not
+		// to our own .status writes. Without this, a request that re-validates and
+		// re-blocks (e.g. a permanent MACHINE_NOT_FOUND) would hot-loop: each status
+		// update triggers an immediate reconcile that flips the phase and writes
+		// again. The reconciler already drives every step via RequeueAfter, so it
+		// does not depend on status-change events.
+		For(&v1alpha1.MaintenanceRequest{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		WithOptions(ctrlcontroller.Options{MaxConcurrentReconciles: r.Config.ReconcileConcurrency}).
 		Named("maintenancerequest").
 		Complete(r)
