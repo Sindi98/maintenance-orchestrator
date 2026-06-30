@@ -51,6 +51,12 @@ type Config struct {
 	MetricsAddr string `json:"metricsAddr"`
 	// ProbeAddr is the bind address for /healthz and /readyz.
 	ProbeAddr string `json:"probeAddr"`
+	// UIEnabled turns on the built-in web dashboard. Off by default: the UI has no
+	// authentication, so expose it only behind an authenticating proxy or via
+	// `kubectl port-forward`.
+	UIEnabled bool `json:"uiEnabled"`
+	// UIAddr is the bind address for the web dashboard when UIEnabled.
+	UIAddr string `json:"uiAddr"`
 	// LeaderElection enables single-active-instance leader election.
 	LeaderElection bool `json:"leaderElection"`
 	// LeaderElectionID is the name of the lease used for leader election.
@@ -87,6 +93,8 @@ func Defaults() *Config {
 	return &Config{
 		MetricsAddr:               ":8080",
 		ProbeAddr:                 ":8081",
+		UIEnabled:                 false,
+		UIAddr:                    ":8082",
 		LeaderElection:            true,
 		LeaderElectionID:          "maintenance-orchestrator.maintenance.platform.dev",
 		ReconcileConcurrency:      2,
@@ -138,6 +146,8 @@ func Load() (*Config, error) {
 func applyEnvOverrides(cfg *Config) {
 	cfg.MetricsAddr = envString("METRICS_ADDR", cfg.MetricsAddr)
 	cfg.ProbeAddr = envString("PROBE_ADDR", cfg.ProbeAddr)
+	cfg.UIEnabled = envBool("UI_ENABLED", cfg.UIEnabled)
+	cfg.UIAddr = envString("UI_ADDR", cfg.UIAddr)
 	cfg.LeaderElection = envBool("LEADER_ELECTION", cfg.LeaderElection)
 	cfg.LeaderElectionID = envString("LEADER_ELECTION_ID", cfg.LeaderElectionID)
 	cfg.ReconcileConcurrency = envInt("RECONCILE_CONCURRENCY", cfg.ReconcileConcurrency)
@@ -188,6 +198,9 @@ func (c *Config) Validate() error {
 	}
 	if strings.TrimSpace(c.DefaultPolicyName) == "" {
 		return fmt.Errorf("defaultPolicyName must not be empty")
+	}
+	if c.UIEnabled && strings.TrimSpace(c.UIAddr) == "" {
+		return fmt.Errorf("uiAddr must be set when uiEnabled is true")
 	}
 	return nil
 }

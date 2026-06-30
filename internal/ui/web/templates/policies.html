@@ -1,0 +1,30 @@
+{{define "title"}}Policies &middot; Maintenance Orchestrator{{end}}
+{{define "content"}}
+<h1>Maintenance policies <small class="muted">(read-only)</small></h1>
+<p class="muted">Policies are cluster guardrails. Edit them with <code>kubectl</code>/<code>oc</code> for safety.</p>
+<table class="grid">
+  <thead>
+    <tr>
+      <th>Name</th><th>Control-plane</th><th>Max concurrent</th><th>Max unavailable</th>
+      <th>Headroom</th><th>Force</th><th>Replacement</th><th>Default approval</th>
+    </tr>
+  </thead>
+  <tbody>
+  {{- if not .Policies}}
+    <tr><td colspan="8" class="muted center">No MaintenancePolicy objects found.</td></tr>
+  {{- end}}
+  {{- range .Policies}}
+    <tr>
+      <td><strong>{{.Name}}</strong></td>
+      <td>{{if .Spec.ProtectControlPlane}}<span class="badge ok">protected</span>{{else}}<span class="badge wait">drainable</span>{{end}}</td>
+      <td>{{.Spec.MaxConcurrentDrains}}</td>
+      <td>{{if .Spec.MaxUnavailableNodes}}{{.Spec.MaxUnavailableNodes}} nodes{{end}}{{if .Spec.MaxUnavailablePercent}} {{.Spec.MaxUnavailablePercent}}%{{end}}{{if and (not .Spec.MaxUnavailableNodes) (not .Spec.MaxUnavailablePercent)}}<span class="muted">&mdash;</span>{{end}}</td>
+      <td>{{if .Spec.MinCapacityHeadroomPercent}}{{.Spec.MinCapacityHeadroomPercent}}%{{else}}<span class="muted">&mdash;</span>{{end}}</td>
+      <td>{{if .Spec.AllowForceEviction}}<span class="badge bad">allowed</span>{{else}}<span class="badge muted">off</span>{{end}}</td>
+      <td>{{if .Spec.AllowNodeReplacement}}<span class="badge wait">allowed</span>{{else}}<span class="badge muted">off</span>{{end}}</td>
+      <td>{{if .Spec.DefaultApprovalPolicy}}{{.Spec.DefaultApprovalPolicy}}{{else}}AutoApprove{{end}}</td>
+    </tr>
+  {{- end}}
+  </tbody>
+</table>
+{{end}}

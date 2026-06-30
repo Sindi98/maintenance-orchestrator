@@ -17,3 +17,4 @@ resources:
   - configmap.yaml
   - deployment.yaml
   - service.yaml
+  - ui-service.yaml

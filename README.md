@@ -266,6 +266,17 @@ Metriche Prometheus su `:8080/metrics`:
 Health: `:8081/healthz` (liveness), `:8081/readyz` (readiness). Audit: log JSON
 strutturati, Event Kubernetes opzionali (`ENABLE_K8S_EVENTS`) ed export JSON-lines
 opzionale (`AUDIT_EXPORT_PATH`, montare un volume scrivibile).
+## Dashboard web (UI)
+Dashboard integrata, server-side in Go (`html/template` + JS vanilla, niente
+Node/build), nel binario del manager. Abilitata con `uiEnabled: true` /
+`UI_ENABLED` (porta `uiAddr`, default `:8082`). Permette di: elencare le richieste
+con stato/progresso **live** (auto-refresh 3s), vedere dettaglio (preflight, plan,
+per-nodo, conditions), **creare** richieste, e **approvare/rifiutare/pausa/riprendi/
+annulla**. Le policy sono in sola lettura.
+> ⚠️ **Nessuna autenticazione**: esposta solo su Service `ClusterIP`. Accesso via
+> `kubectl -n maintenance-orchestrator-system port-forward svc/maintenance-orchestrator-ui 8082:8082`
+> poi http://localhost:8082 — oppure dietro un ingress con auth. `uiEnabled: false`
+> la disabilita del tutto.
 ## RBAC
 ClusterRole minima: `maintenancerequests`/`maintenancepolicies` (+`/status`);
 `nodes` get/list/watch/**patch**; `pods` get/list/watch/**delete** (solo force);

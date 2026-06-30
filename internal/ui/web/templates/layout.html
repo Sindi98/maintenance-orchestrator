@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{block "title" .}}Maintenance Orchestrator{{end}}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <a class="brand" href="/">&#128295; Maintenance Orchestrator</a>
+    <nav>
+      <a href="/">Requests</a>
+      <a href="/policies">Policies</a>
+      <a class="btn primary" href="/new">+ New request</a>
+    </nav>
+  </header>
+  <main>
+    {{block "content" .}}{{end}}
+  </main>
+  <footer>
+    Policies are read-only here &middot; actions patch the CRs &middot; status auto-refreshes every 3s.
+  </footer>
+  <script src="/static/app.js"></script>
+</body>
+</html>

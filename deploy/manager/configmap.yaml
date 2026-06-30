@@ -13,6 +13,11 @@ data:
     # Precedence at startup: these values -> environment variables.
     metricsAddr: ":8080"
     probeAddr: ":8081"
+    # Built-in web dashboard. It has NO authentication, so it is only reachable on
+    # a ClusterIP Service: access it via `kubectl port-forward` or put it behind an
+    # authenticating ingress. Set uiEnabled: false to disable it entirely.
+    uiEnabled: true
+    uiAddr: ":8082"
     leaderElection: true
     leaderElectionID: "maintenance-orchestrator.maintenance.platform.dev"
     reconcileConcurrency: 2
