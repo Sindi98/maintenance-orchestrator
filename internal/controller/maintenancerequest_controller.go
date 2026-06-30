@@ -55,6 +55,8 @@ type MaintenanceRequestReconciler struct {
 // +kubebuilder:rbac:groups=policy,resources=poddisruptionbudgets,verbs=get;list;watch
 // +kubebuilder:rbac:groups=apps,resources=deployments;replicasets;statefulsets;daemonsets,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
+// +kubebuilder:rbac:groups=machine.openshift.io,resources=machines,verbs=get;list;watch;delete
+// +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=machines,verbs=get;list;watch;delete
 
 // Reconcile is the entry point invoked by controller-runtime.
 func (r *MaintenanceRequestReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -135,6 +137,9 @@ func (r *MaintenanceRequestReconciler) SetupWithManager(mgr ctrl.Manager) error 
 	}
 
 	r.kube = kube.New(mgr.GetClient())
+	// Use the uncached APIReader for Machine lookups so listing them never starts
+	// a cache informer for a Machine CRD that may be absent.
+	r.kube.Reader = mgr.GetAPIReader()
 	r.preflight = preflight.NewEngine(r.kube)
 	r.planner = planner.NewPlanner(r.kube, r.Config.DefaultPoolKeys)
 	r.executor = executor.New(r.kube)
@@ -301,6 +306,23 @@ func (r *MaintenanceRequestReconciler) drainTimedOut(mr *v1alpha1.MaintenanceReq
 		return false
 	}
 	return time.Since(ns.StartTime.Time) > r.effectiveDrainTimeout(mr)
+}
+
+func (r *MaintenanceRequestReconciler) effectiveReplacementTimeout(mr *v1alpha1.MaintenanceRequest) time.Duration {
+	if mr.Spec.Upgrade != nil && mr.Spec.Upgrade.ReplacementTimeout.Duration > 0 {
+		return mr.Spec.Upgrade.ReplacementTimeout.Duration
+	}
+	return r.Config.DefaultReplacementTimeout.Duration
+}
+
+// replacementTimedOut bounds the whole per-node budget (drain + replacement)
+// measured from when work on the node began, so a node that drained slowly does
+// not get an extra full replacement window.
+func (r *MaintenanceRequestReconciler) replacementTimedOut(mr *v1alpha1.MaintenanceRequest, ns *v1alpha1.NodeExecutionStatus) bool {
+	if ns.StartTime == nil {
+		return false
+	}
+	return time.Since(ns.StartTime.Time) > r.effectiveDrainTimeout(mr)+r.effectiveReplacementTimeout(mr)
 }
 
 // canPause reports whether a phase can transition to Paused on spec.pause.

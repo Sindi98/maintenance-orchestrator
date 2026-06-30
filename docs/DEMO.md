@@ -390,7 +390,33 @@ kubectl patch mreq pool-demo --type=merge -p '{"spec":{"pause":false}}'   # IT: 
 kubectl patch mreq pool-demo --type=merge -p '{"spec":{"cancel":true}}'   # IT: annulla / EN: cancel
 ```
 
-### 4.7 Pulizia / Cleanup
+### 4.7 Aggiornare la versione Kubernetes / Upgrade the Kubernetes version
+
+🇮🇹 Con `spec.upgrade` la manutenzione **sostituisce** il nodo dopo il drain:
+elimina la sua `Machine` (OpenShift `machine.openshift.io` o Cluster API
+`cluster.x-k8s.io`) così il pool lo ricrea alla versione del template. Richiede
+`allowNodeReplacement: true` nella policy (già nel sample `cluster-default`).
+
+🇬🇧 With `spec.upgrade` the maintenance **replaces** the node after draining: it
+deletes its `Machine` (OpenShift or Cluster API) so the pool recreates it at the
+template's version. Requires `allowNodeReplacement: true` in the policy (already
+set in the `cluster-default` sample).
+
+> ⚠️ 🇮🇹 **`kind` non ha una Machine API**, quindi il preflight risponde
+> `MACHINE_NOT_FOUND` e il nodo va in `Blocked`: la sostituzione si prova su
+> **OpenShift** o un cluster **Cluster API/CAPI** reale. Vedi
+> [`deploy/samples/mreq-pool-upgrade.yaml`](../deploy/samples/mreq-pool-upgrade.yaml).
+> 🇬🇧 **`kind` has no Machine API**, so preflight returns `MACHINE_NOT_FOUND` and the
+> node goes `Blocked`; try replacement on real **OpenShift** or **Cluster API**.
+
+```bash
+# IT: su un cluster con Machine API / EN: on a cluster with a Machine API
+kubectl apply -f deploy/samples/mreq-pool-upgrade.yaml
+kubectl get mreq pool-upgrade -o jsonpath='{range .status.nodes[*]}{.node}{"  "}{.phase}{"  "}{.message}{"\n"}{end}'
+# IT: fasi attese / EN: expected phases: ... Draining -> Replacing -> AwaitingReplacement -> Completed
+```
+
+### 4.8 Pulizia / Cleanup
 
 ```bash
 kind delete cluster --name mo-demo

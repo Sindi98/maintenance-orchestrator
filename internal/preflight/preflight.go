@@ -117,8 +117,53 @@ func (e *Engine) Run(ctx context.Context, in Input) ([]v1alpha1.PreflightCheckRe
 	e.checkCapacity(ctx, in, removal, add)
 	e.checkUnavailability(in, add)
 	checkWindow(in, now, add)
+	if err := e.checkReplacement(ctx, in, add); err != nil {
+		return nil, err
+	}
 
 	return truncate(out), nil
+}
+
+// checkReplacement validates a node-replacement (upgrade) request: the policy
+// must permit it, each target node must have a backing Machine, and nodes already
+// at the target version are flagged (they will be skipped at execution).
+func (e *Engine) checkReplacement(
+	ctx context.Context,
+	in Input,
+	add func(code, node string, status v1alpha1.CheckStatus, msg string, details map[string]string),
+) error {
+	if !in.Request.Spec.ReplaceNodes() {
+		return nil
+	}
+	if !in.Policy.ReplacementAllowed() {
+		add(v1alpha1.CodeReplacementDenied, "", v1alpha1.CheckFail,
+			"node replacement is not permitted; set allowNodeReplacement: true in the MaintenancePolicy", nil)
+		return nil
+	}
+
+	target := in.Request.Spec.EffectiveMachineAPI()
+	wantVersion := ""
+	if in.Request.Spec.Upgrade != nil {
+		wantVersion = in.Request.Spec.Upgrade.TargetKubeletVersion
+	}
+	for i := range in.Nodes {
+		node := &in.Nodes[i]
+		if wantVersion != "" && kube.KubeletVersion(node) == wantVersion {
+			add(v1alpha1.CodeAlreadyAtVersion, node.Name, v1alpha1.CheckWarn,
+				"node already reports the target version; it will be skipped",
+				map[string]string{"version": wantVersion})
+			continue
+		}
+		ref, err := e.Client.FindMachine(ctx, node, target)
+		if err != nil {
+			return fmt.Errorf("find machine for node %s: %w", node.Name, err)
+		}
+		if ref == nil {
+			add(v1alpha1.CodeMachineNotFound, node.Name, v1alpha1.CheckFail,
+				"no Machine (Cluster API / OpenShift) backs this node, so it cannot be replaced", nil)
+		}
+	}
+	return nil
 }
 
 // checkPods evaluates pod-level risks on a single node.

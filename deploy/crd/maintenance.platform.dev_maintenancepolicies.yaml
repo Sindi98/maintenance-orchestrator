@@ -95,6 +95,10 @@ spec:
                   description: AllowForceEviction permits deletion-based eviction when a request also sets Force. Off by default.
                   type: boolean
                   default: false
+                allowNodeReplacement:
+                  description: AllowNodeReplacement permits requests with spec.upgrade to delete a node's backing Machine after draining. Off by default.
+                  type: boolean
+                  default: false
                 defaultApprovalPolicy:
                   description: DefaultApprovalPolicy is applied to requests that do not specify one.
                   type: string

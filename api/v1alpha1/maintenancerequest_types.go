@@ -86,6 +86,27 @@ type MaintenanceSpec struct {
 	// Force allows deletion-based eviction when policy-permitted (AllowForceEviction).
 	// +optional
 	Force bool `json:"force,omitempty"`
+
+	// Upgrade, when set, replaces each node after a successful drain (instead of
+	// uncordoning it) so it returns at the pool's Kubernetes version. Requires a
+	// Machine API (OpenShift machine.openshift.io or Cluster API) and the
+	// policy to permit node replacement.
+	// +optional
+	Upgrade *UpgradeSpec `json:"upgrade,omitempty"`
+}
+
+// ReplaceNodes reports whether this request replaces nodes after draining.
+func (s MaintenanceSpec) ReplaceNodes() bool {
+	return s.Upgrade != nil && (s.Upgrade.Strategy == "" || s.Upgrade.Strategy == UpgradeReplaceNode)
+}
+
+// EffectiveMachineAPI returns the configured Machine API preference, defaulting
+// to Auto when a request enables replacement without specifying one.
+func (s MaintenanceSpec) EffectiveMachineAPI() MachineAPI {
+	if s.Upgrade == nil || s.Upgrade.MachineAPI == "" {
+		return MachineAPIAuto
+	}
+	return s.Upgrade.MachineAPI
 }
 
 // MaintenanceStatus is the observed state of a MaintenanceRequest.

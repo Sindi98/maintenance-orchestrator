@@ -238,6 +238,30 @@ spec:
                 force:
                   description: Force allows deletion-based eviction when policy-permitted.
                   type: boolean
+                upgrade:
+                  description: Upgrade, when set, replaces each node after a successful drain (instead of uncordoning it) so it returns at the pool's Kubernetes version.
+                  type: object
+                  properties:
+                    strategy:
+                      description: Strategy selects how the node version is upgraded.
+                      type: string
+                      default: ReplaceNode
+                      enum:
+                        - ReplaceNode
+                    machineAPI:
+                      description: MachineAPI selects which Machine API backs the nodes (Auto infers it from node annotations).
+                      type: string
+                      default: Auto
+                      enum:
+                        - Auto
+                        - ClusterAPI
+                        - OpenShift
+                    targetKubeletVersion:
+                      description: TargetKubeletVersion is the kubelet version a replacement node must report before the node completes.
+                      type: string
+                    replacementTimeout:
+                      description: ReplacementTimeout bounds the wait for a replacement node to come up; zero uses the controller default.
+                      type: string
             status:
               description: MaintenanceStatus is the observed state of a MaintenanceRequest.
               type: object
@@ -434,6 +458,8 @@ spec:
                           - Draining
                           - PostCheck
                           - Uncordoning
+                          - Replacing
+                          - AwaitingReplacement
                           - Completed
                           - Blocked
                           - Failed

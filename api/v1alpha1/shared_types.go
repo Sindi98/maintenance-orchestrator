@@ -113,7 +113,7 @@ const (
 )
 
 // NodePhase is the per-node state during execution.
-// +kubebuilder:validation:Enum=Pending;Cordoning;Draining;PostCheck;Uncordoning;Completed;Blocked;Failed;Skipped
+// +kubebuilder:validation:Enum=Pending;Cordoning;Draining;PostCheck;Uncordoning;Replacing;AwaitingReplacement;Completed;Blocked;Failed;Skipped
 type NodePhase string
 
 const (
@@ -122,10 +122,38 @@ const (
 	NodeDraining    NodePhase = "Draining"
 	NodePostCheck   NodePhase = "PostCheck"
 	NodeUncordoning NodePhase = "Uncordoning"
-	NodeCompleted   NodePhase = "Completed"
-	NodeBlocked     NodePhase = "Blocked"
-	NodeFailed      NodePhase = "Failed"
-	NodeSkipped     NodePhase = "Skipped"
+	// NodeReplacing deletes the node's backing Machine after a successful drain.
+	NodeReplacing NodePhase = "Replacing"
+	// NodeAwaitingReplacement waits for the old node to be removed and (when a
+	// target version is set) for a replacement node to come up at that version.
+	NodeAwaitingReplacement NodePhase = "AwaitingReplacement"
+	NodeCompleted           NodePhase = "Completed"
+	NodeBlocked             NodePhase = "Blocked"
+	NodeFailed              NodePhase = "Failed"
+	NodeSkipped             NodePhase = "Skipped"
+)
+
+// UpgradeStrategy selects how a node's Kubernetes version is upgraded.
+// +kubebuilder:validation:Enum=ReplaceNode
+type UpgradeStrategy string
+
+const (
+	// UpgradeReplaceNode deletes the node's backing Machine so the owning
+	// MachineSet/MachineDeployment recreates it at the pool's version.
+	UpgradeReplaceNode UpgradeStrategy = "ReplaceNode"
+)
+
+// MachineAPI selects which Machine API backs the nodes being replaced.
+// +kubebuilder:validation:Enum=Auto;ClusterAPI;OpenShift
+type MachineAPI string
+
+const (
+	// MachineAPIAuto infers the API from node annotations (OpenShift first).
+	MachineAPIAuto MachineAPI = "Auto"
+	// MachineAPIClusterAPI uses cluster.x-k8s.io/v1beta1 Machines.
+	MachineAPIClusterAPI MachineAPI = "ClusterAPI"
+	// MachineAPIOpenShift uses machine.openshift.io/v1beta1 Machines.
+	MachineAPIOpenShift MachineAPI = "OpenShift"
 )
 
 // Preflight check codes (machine-readable, recorded in status.preflight[].code).
@@ -146,6 +174,9 @@ const (
 	CodeTooManyUnavailable = "TOO_MANY_UNAVAILABLE"
 	CodeWindowClosed       = "WINDOW_CLOSED"
 	CodeMCOManaged         = "MCO_MANAGED"
+	CodeMachineNotFound    = "MACHINE_NOT_FOUND"
+	CodeAlreadyAtVersion   = "ALREADY_AT_TARGET_VERSION"
+	CodeReplacementDenied  = "REPLACEMENT_NOT_ALLOWED"
 )
 
 // Block reasons (machine-readable, recorded in status.nodes[].blockReason).
@@ -158,6 +189,8 @@ const (
 	BlockLocalStorage     = "LocalStorageRisk"
 	BlockEvictionError    = "EvictionError"
 	BlockTimeout          = "Timeout"
+	BlockMachineNotFound  = "MachineNotFound"
+	BlockReplaceTimeout   = "ReplacementTimeout"
 )
 
 // Condition types surfaced on status.conditions[].type.
@@ -194,6 +227,33 @@ type TargetRef struct {
 	// PoolValue is the node label value identifying a pool, used when Type is Pool.
 	// +optional
 	PoolValue string `json:"poolValue,omitempty"`
+}
+
+// UpgradeSpec configures node replacement after a successful drain. When set,
+// each drained node is replaced (its backing Machine is deleted) instead of being
+// uncordoned, so the owning MachineSet recreates it at the pool's version.
+type UpgradeSpec struct {
+	// Strategy selects how the node version is upgraded.
+	// +optional
+	// +kubebuilder:default=ReplaceNode
+	Strategy UpgradeStrategy `json:"strategy,omitempty"`
+
+	// MachineAPI selects which Machine API backs the nodes. Auto infers it from
+	// node annotations (OpenShift machine.openshift.io, then Cluster API).
+	// +optional
+	// +kubebuilder:default=Auto
+	MachineAPI MachineAPI `json:"machineAPI,omitempty"`
+
+	// TargetKubeletVersion, when set, is the kubelet version a replacement node
+	// must report before the node is marked complete (post-check), e.g. "v1.30.2".
+	// When empty, the node completes as soon as the old node is removed.
+	// +optional
+	TargetKubeletVersion string `json:"targetKubeletVersion,omitempty"`
+
+	// ReplacementTimeout bounds the wait for a replacement node to come up after
+	// the Machine is deleted; zero uses the controller default.
+	// +optional
+	ReplacementTimeout metav1.Duration `json:"replacementTimeout,omitempty"`
 }
 
 // Window describes a recurring time window during which mutation is allowed.

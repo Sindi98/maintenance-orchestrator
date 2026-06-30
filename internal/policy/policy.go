@@ -46,6 +46,7 @@ func DefaultSpec() v1alpha1.MaintenancePolicySpec {
 		MaxConcurrentDrains:    DefaultMaxConcurrentDrains,
 		MaxUnavailablePercent:  DefaultMaxUnavailablePercent,
 		AllowForceEviction:     false,
+		AllowNodeReplacement:   false,
 		DefaultApprovalPolicy:  v1alpha1.ApprovalAuto,
 		FailureThreshold:       DefaultFailureThreshold,
 	}
@@ -198,6 +199,11 @@ func (e *Effective) Concurrency(requested int32) int32 {
 // that sets force, i.e. the policy enables AllowForceEviction as well.
 func (e *Effective) ForceAllowed(requestForce bool) bool {
 	return requestForce && e.Spec.AllowForceEviction
+}
+
+// ReplacementAllowed reports whether the policy permits node replacement.
+func (e *Effective) ReplacementAllowed() bool {
+	return e.Spec.AllowNodeReplacement
 }
 
 // ApprovalPolicy returns the effective approval policy for a request: the

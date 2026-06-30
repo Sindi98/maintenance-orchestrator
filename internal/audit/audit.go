@@ -31,6 +31,8 @@ const (
 	ActionPodEvicted         = "pod.evicted"
 	ActionNodeDrained        = "node.drained"
 	ActionNodeUncordoned     = "node.uncordoned"
+	ActionNodeReplacing      = "node.replacing"
+	ActionNodeReplaced       = "node.replaced"
 	ActionNodeBlocked        = "node.blocked"
 	ActionPaused             = "request.paused"
 	ActionResumed            = "request.resumed"

@@ -319,6 +319,11 @@ func (in *MaintenanceSpec) DeepCopyInto(out *MaintenanceSpec) {
 		*out = new(PolicyRef)
 		**out = **in
 	}
+	if in.Upgrade != nil {
+		in, out := &in.Upgrade, &out.Upgrade
+		*out = new(UpgradeSpec)
+		**out = **in
+	}
 }
 
 // DeepCopy is a deepcopy function, copying the receiver, creating a new MaintenanceSpec.
@@ -478,6 +483,22 @@ func (in *TargetRef) DeepCopy() *TargetRef {
 		return nil
 	}
 	out := new(TargetRef)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyInto is a deepcopy function, copying the receiver, writing into out. in must be non-nil.
+func (in *UpgradeSpec) DeepCopyInto(out *UpgradeSpec) {
+	*out = *in
+	out.ReplacementTimeout = in.ReplacementTimeout
+}
+
+// DeepCopy is a deepcopy function, copying the receiver, creating a new UpgradeSpec.
+func (in *UpgradeSpec) DeepCopy() *UpgradeSpec {
+	if in == nil {
+		return nil
+	}
+	out := new(UpgradeSpec)
 	in.DeepCopyInto(out)
 	return out
 }

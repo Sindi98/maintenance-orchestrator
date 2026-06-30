@@ -243,13 +243,31 @@ Identical, with `oc apply`. Specific notes:
 | `pause`, `cancel` | bool | runtime control |
 | `policyRef.name` | string | policy override |
 | `allowControlPlane`, `force` | bool | dangerous opt-ins (gated by policy) |
+| `upgrade` | {strategy,machineAPI,targetKubeletVersion,replacementTimeout} | replaces nodes after draining (see below) |
+
+#### Kubernetes version upgrade (node replacement)
+
+With `spec.upgrade` set, each node is **replaced** after draining instead of being
+uncordoned: the orchestrator deletes the backing `Machine` (OpenShift
+`machine.openshift.io` or Cluster API `cluster.x-k8s.io`) so the MachineSet
+recreates it from its template — i.e. at the pool's version. Fields:
+- `strategy: ReplaceNode` (only strategy).
+- `machineAPI: Auto|ClusterAPI|OpenShift` — `Auto` infers it from node annotations.
+- `targetKubeletVersion` (optional) — post-check: a node completes only once a
+  `Ready` node reports that version; a node already at the version is skipped.
+- `replacementTimeout` — max wait for the replacement node (config default otherwise).
+
+Requires `allowNodeReplacement: true` in the policy (off by default, opt-in) and a
+Machine API present. On clusters without one (e.g. `kind`) preflight returns
+`MACHINE_NOT_FOUND`. Example: [`deploy/samples/mreq-pool-upgrade.yaml`](deploy/samples/mreq-pool-upgrade.yaml).
 
 ### MaintenancePolicy (`mpol`) — cluster guardrails
 
 `protectControlPlane`, `controlPlaneNodeLabels`, `maxConcurrentDrains`,
 `maxUnavailableNodes`, `maxUnavailablePercent`, `reservedNodeLabels`,
 `reservedTaints`, `minCapacityHeadroomPercent`, `allowForceEviction`,
-`defaultApprovalPolicy`, `allowedWindows`, `failureThreshold`, `nodeSelector`.
+`allowNodeReplacement`, `defaultApprovalPolicy`, `allowedWindows`,
+`failureThreshold`, `nodeSelector`.
 
 Full examples in [`deploy/samples/`](deploy/samples).
 
@@ -280,7 +298,8 @@ kubectl patch mreq pool-rolling-approval --type=merge -p '{"spec":{"cancel":true
 `Paused`, `Blocked`, `Failed`, `Cancelled`. Terminal states: `Completed`, `Failed`,
 `Cancelled`. Transitions are validated in `internal/statemachine`; each node has a
 sub-machine `Pending → Cordoning → Draining → PostCheck → Uncordoning → Completed`
-(plus `Blocked`/`Failed`/`Skipped`). Per-state detail in `docs/DESIGN.en.md`.
+(plus `Blocked`/`Failed`/`Skipped`); `upgrade` requests use
+`PostCheck → Replacing → AwaitingReplacement → Completed`. Per-state detail in `docs/DESIGN.en.md`.
 
 ## Preflight checks
 
@@ -303,6 +322,9 @@ Each check produces a `status` (Pass/Warn/Fail), a `code` and structured details
 | `TOO_MANY_UNAVAILABLE` | Fail | peak simultaneous unavailability (concurrency, if uncordon) would exceed the cap |
 | `WINDOW_CLOSED` | Warn | outside the maintenance window |
 | `MCO_MANAGED` | Warn | node being reconfigured by MCO (will be `Skipped`) |
+| `MACHINE_NOT_FOUND` | Fail | upgrade requested but no Machine backs the node |
+| `ALREADY_AT_TARGET_VERSION` | Warn | node already at the target version (will be `Skipped`) |
+| `REPLACEMENT_NOT_ALLOWED` | Fail | `spec.upgrade` but policy lacks `allowNodeReplacement` |
 
 A single `Fail` moves the request to `Blocked` (in `Execute`).
 
@@ -329,6 +351,7 @@ Prometheus metrics on `:8080/metrics`:
 | `preflight_failures_total` | counter | `check` |
 | `blocked_drains_total` | counter | `reason` |
 | `active_maintenances` | gauge | — |
+| `maintenance_node_replacements_total` | counter | result |
 
 Health: `:8081/healthz` (liveness), `:8081/readyz` (readiness). Audit: structured
 JSON logs, optional Kubernetes Events (`ENABLE_K8S_EVENTS`) and optional JSON-lines

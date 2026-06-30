@@ -115,6 +115,18 @@ func TestConcurrencyAndForce(t *testing.T) {
 	}
 }
 
+func TestReplacementAllowed(t *testing.T) {
+	if policy.DefaultSpec().AllowNodeReplacement {
+		t.Error("node replacement must be off in the built-in default policy")
+	}
+	if eff(v1alpha1.MaintenancePolicySpec{}).ReplacementAllowed() {
+		t.Error("an empty policy must not allow node replacement")
+	}
+	if !eff(v1alpha1.MaintenancePolicySpec{AllowNodeReplacement: true}).ReplacementAllowed() {
+		t.Error("policy with AllowNodeReplacement=true must allow replacement")
+	}
+}
+
 func TestReservedAndControlPlaneDetection(t *testing.T) {
 	e := eff(v1alpha1.MaintenancePolicySpec{
 		ReservedNodeLabels: []string{"team/reserved"},
