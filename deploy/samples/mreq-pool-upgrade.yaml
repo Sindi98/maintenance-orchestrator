@@ -1,0 +1,51 @@
+# Rolling Kubernetes version upgrade of a node pool by REPLACEMENT, one node at a
+# time, gated by manual approval before any disruption.
+#
+# How it works: each node is cordoned and drained, then its backing Machine is
+# deleted (Cluster API or OpenShift machine.openshift.io). The owning
+# MachineSet/MachineDeployment recreates the node from its (already-updated)
+# template, so it rejoins at the pool's Kubernetes version. The node is NOT
+# uncordoned (it is replaced, not returned).
+#
+# Prerequisites:
+#   - A Machine API is present and the pool template already targets the new
+#     version (the platform admin bumps the MachineDeployment/MachineSet image or
+#     the OpenShift cluster version first).
+#   - The effective MaintenancePolicy sets allowNodeReplacement: true.
+#
+# Approve the drain gate:
+#   kubectl patch mreq pool-upgrade --type=merge \
+#     -p '{"spec":{"approval":{"gates":[{"gate":"Drain","decision":"Approved","approvedBy":"sre@example.com"}]}}}'
+apiVersion: maintenance.platform.dev/v1alpha1
+kind: MaintenanceRequest
+metadata:
+  name: pool-upgrade
+spec:
+  mode: Execute
+  reason: "Upgrade worker pool to Kubernetes v1.30.2"
+  requestedBy: "sre@example.com"
+  target:
+    type: NodeSelector
+    selector:
+      matchLabels:
+        node-role.kubernetes.io/worker: ""
+  strategy: Serial
+  maxConcurrent: 1
+  # Replace nodes after draining instead of uncordoning them.
+  upgrade:
+    strategy: ReplaceNode
+    # Auto detects OpenShift (machine.openshift.io) or Cluster API from the node
+    # annotations; set explicitly to ClusterAPI or OpenShift to force one.
+    machineAPI: Auto
+    # Optional post-check: the request only completes a node once a Ready node
+    # reporting this kubelet version exists. Leave empty to complete as soon as
+    # the old node is removed.
+    targetKubeletVersion: "v1.30.2"
+    # How long to wait for a replacement node to come up before blocking the node.
+    replacementTimeout: 30m
+  drainTimeout: 20m
+  globalTimeout: 6h
+  approval:
+    policy: ManualBeforeDrain
+  policyRef:
+    name: cluster-default

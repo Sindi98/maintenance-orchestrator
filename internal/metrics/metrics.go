@@ -63,6 +63,15 @@ var (
 		Name: "active_maintenances",
 		Help: "Number of MaintenanceRequests currently in a non-terminal phase.",
 	})
+
+	// NodeReplacementsTotal counts node replacements, by result.
+	NodeReplacementsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "maintenance_node_replacements_total",
+			Help: "Total number of node replacements performed, by result.",
+		},
+		[]string{"result"},
+	)
 )
 
 var collectors = []prometheus.Collector{
@@ -73,6 +82,7 @@ var collectors = []prometheus.Collector{
 	PreflightFailuresTotal,
 	BlockedDrainsTotal,
 	ActiveMaintenances,
+	NodeReplacementsTotal,
 }
 
 // Register adds all collectors to the controller-runtime metrics registry,

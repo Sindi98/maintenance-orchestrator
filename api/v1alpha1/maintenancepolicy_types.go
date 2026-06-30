@@ -60,6 +60,12 @@ type MaintenancePolicySpec struct {
 	// +kubebuilder:default=false
 	AllowForceEviction bool `json:"allowForceEviction"`
 
+	// AllowNodeReplacement permits requests with spec.upgrade to delete a node's
+	// backing Machine after draining (node replacement). Off by default: node
+	// replacement is destructive, so it must be explicitly enabled by policy.
+	// +kubebuilder:default=false
+	AllowNodeReplacement bool `json:"allowNodeReplacement"`
+
 	// DefaultApprovalPolicy is applied to requests that do not specify one.
 	// +optional
 	// +kubebuilder:default=AutoApprove

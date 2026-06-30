@@ -45,4 +45,12 @@ rules:
   - apiGroups: [""]
     resources: ["events"]
     verbs: ["create", "patch"]
+  # Machines: read and delete to replace nodes (spec.upgrade) on OpenShift and
+  # Cluster API. Only granted for the Machine kind; never the providers/configs.
+  - apiGroups: ["machine.openshift.io"]
+    resources: ["machines"]
+    verbs: ["get", "list", "watch", "delete"]
+  - apiGroups: ["cluster.x-k8s.io"]
+    resources: ["machines"]
+    verbs: ["get", "list", "watch", "delete"]
 

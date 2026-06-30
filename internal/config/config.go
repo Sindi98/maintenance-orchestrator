@@ -65,6 +65,9 @@ type Config struct {
 	DefaultDrainTimeout Duration `json:"defaultDrainTimeout"`
 	// DefaultGlobalTimeout applies when a request leaves spec.globalTimeout unset.
 	DefaultGlobalTimeout Duration `json:"defaultGlobalTimeout"`
+	// DefaultReplacementTimeout bounds the wait for a replacement node when a
+	// request with spec.upgrade leaves replacementTimeout unset.
+	DefaultReplacementTimeout Duration `json:"defaultReplacementTimeout"`
 	// LogLevel is one of debug|info|warn|error.
 	LogLevel string `json:"logLevel"`
 	// LogFormat is one of json|console.
@@ -82,20 +85,21 @@ type Config struct {
 // Defaults returns a Config populated with safe production defaults.
 func Defaults() *Config {
 	return &Config{
-		MetricsAddr:           ":8080",
-		ProbeAddr:             ":8081",
-		LeaderElection:        true,
-		LeaderElectionID:      "maintenance-orchestrator.maintenance.platform.dev",
-		ReconcileConcurrency:  2,
-		EvictionPollInterval:  Duration{5 * time.Second},
-		GlobalRequeueInterval: Duration{30 * time.Second},
-		DefaultDrainTimeout:   Duration{15 * time.Minute},
-		DefaultGlobalTimeout:  Duration{2 * time.Hour},
-		LogLevel:              "info",
-		LogFormat:             "json",
-		EnableK8sEvents:       true,
-		DefaultPolicyName:     "cluster-default",
-		AuditExportPath:       "",
+		MetricsAddr:               ":8080",
+		ProbeAddr:                 ":8081",
+		LeaderElection:            true,
+		LeaderElectionID:          "maintenance-orchestrator.maintenance.platform.dev",
+		ReconcileConcurrency:      2,
+		EvictionPollInterval:      Duration{5 * time.Second},
+		GlobalRequeueInterval:     Duration{30 * time.Second},
+		DefaultDrainTimeout:       Duration{15 * time.Minute},
+		DefaultGlobalTimeout:      Duration{2 * time.Hour},
+		DefaultReplacementTimeout: Duration{20 * time.Minute},
+		LogLevel:                  "info",
+		LogFormat:                 "json",
+		EnableK8sEvents:           true,
+		DefaultPolicyName:         "cluster-default",
+		AuditExportPath:           "",
 		DefaultPoolKeys: []string{
 			"machine.openshift.io/cluster-api-machineset",
 			"eks.amazonaws.com/nodegroup",
@@ -141,6 +145,7 @@ func applyEnvOverrides(cfg *Config) {
 	cfg.GlobalRequeueInterval = envDuration("GLOBAL_REQUEUE_INTERVAL", cfg.GlobalRequeueInterval)
 	cfg.DefaultDrainTimeout = envDuration("DEFAULT_DRAIN_TIMEOUT", cfg.DefaultDrainTimeout)
 	cfg.DefaultGlobalTimeout = envDuration("DEFAULT_GLOBAL_TIMEOUT", cfg.DefaultGlobalTimeout)
+	cfg.DefaultReplacementTimeout = envDuration("DEFAULT_REPLACEMENT_TIMEOUT", cfg.DefaultReplacementTimeout)
 	cfg.LogLevel = envString("LOG_LEVEL", cfg.LogLevel)
 	cfg.LogFormat = envString("LOG_FORMAT", cfg.LogFormat)
 	cfg.EnableK8sEvents = envBool("ENABLE_K8S_EVENTS", cfg.EnableK8sEvents)
@@ -177,6 +182,9 @@ func (c *Config) Validate() error {
 	}
 	if c.DefaultGlobalTimeout.Duration <= 0 {
 		return fmt.Errorf("defaultGlobalTimeout must be > 0")
+	}
+	if c.DefaultReplacementTimeout.Duration <= 0 {
+		return fmt.Errorf("defaultReplacementTimeout must be > 0")
 	}
 	if strings.TrimSpace(c.DefaultPolicyName) == "" {
 		return fmt.Errorf("defaultPolicyName must not be empty")

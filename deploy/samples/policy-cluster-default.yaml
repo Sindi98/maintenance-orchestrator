@@ -16,6 +16,10 @@ spec:
   maxUnavailablePercent: 33
   minCapacityHeadroomPercent: 15
   allowForceEviction: false
+  # Permit node replacement (spec.upgrade): drained nodes have their backing
+  # Machine deleted so the pool recreates them at the pool's version. Destructive,
+  # so it is opt-in; set false to forbid replacement under this policy.
+  allowNodeReplacement: true
   defaultApprovalPolicy: AutoApprove
   failureThreshold: 1
   # No allowedWindows => maintenance is permitted at any time unless a request

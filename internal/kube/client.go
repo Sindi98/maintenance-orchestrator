@@ -33,9 +33,23 @@ const (
 // embedded client provides Get/List/Patch/SubResource directly.
 type Client struct {
 	client.Client
+
+	// Reader is an uncached reader used for optional resources whose CRDs may be
+	// absent (Machines), so listing them never starts a cache informer for a
+	// non-existent kind. When nil the embedded client is used.
+	Reader client.Reader
 }
 
-// New returns a Client wrapping the given controller-runtime client.
+// New returns a Client wrapping the given controller-runtime client. Reader
+// defaults to the same client; callers may override it with an APIReader.
 func New(c client.Client) *Client {
-	return &Client{Client: c}
+	return &Client{Client: c, Reader: c}
+}
+
+// reader returns the uncached Reader, falling back to the embedded client.
+func (c *Client) reader() client.Reader {
+	if c.Reader != nil {
+		return c.Reader
+	}
+	return c.Client
 }

@@ -83,6 +83,40 @@ func (e *Executor) Uncordon(ctx context.Context, nodeName string) error {
 	return e.Client.Uncordon(ctx, node)
 }
 
+// Replace deletes the node's backing Machine so its owning MachineSet recreates
+// it at the pool's version. It reports the Machine acted on (for audit) and
+// whether one was found. A node that is already gone, or has no backing Machine,
+// returns found=false with no error so the caller can decide how to proceed.
+func (e *Executor) Replace(ctx context.Context, nodeName string, api v1alpha1.MachineAPI) (kube.MachineRef, bool, error) {
+	node, err := e.Client.GetNode(ctx, nodeName)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return kube.MachineRef{}, false, nil
+		}
+		return kube.MachineRef{}, false, err
+	}
+	ref, err := e.Client.FindMachine(ctx, node, api)
+	if err != nil {
+		return kube.MachineRef{}, false, err
+	}
+	if ref == nil {
+		return kube.MachineRef{}, false, nil
+	}
+	if err := e.Client.DeleteMachine(ctx, *ref); err != nil {
+		return *ref, true, err
+	}
+	return *ref, true, nil
+}
+
+// NodeGone reports whether the node object no longer exists in the API.
+func (e *Executor) NodeGone(ctx context.Context, nodeName string) (bool, error) {
+	_, err := e.Client.GetNode(ctx, nodeName)
+	if apierrors.IsNotFound(err) {
+		return true, nil
+	}
+	return false, err
+}
+
 // Drained reports whether the node has no drain-blocking pods left, plus the
 // current blocking count.
 func (e *Executor) Drained(ctx context.Context, nodeName string) (bool, int32, error) {

@@ -43,8 +43,10 @@ func (r *MaintenanceRequestReconciler) reconcileExecuting(ctx context.Context, m
 
 	// Uncordon gate: hold the whole request as soon as a node is drained and
 	// waiting to be returned to service, until the gate is approved.
+	// Replacement requests destroy the node instead of returning it, so the
+	// uncordon gate does not apply to them.
 	effPolicy := pol.ApprovalPolicy(mr.Spec.Approval.Policy)
-	uncordonGated := approval.RequiresGate(effPolicy, v1alpha1.GateUncordon)
+	uncordonGated := approval.RequiresGate(effPolicy, v1alpha1.GateUncordon) && !mr.Spec.ReplaceNodes()
 	if uncordonGated && !uncordonApproved(mr, pol) && anyNodeAtPostCheck(mr) {
 		mr.Status.ApprovalGate = v1alpha1.GateUncordon
 		mr.Status.Phase = v1alpha1.PhaseAwaitingApproval
@@ -121,6 +123,10 @@ func (r *MaintenanceRequestReconciler) stepNode(
 			setNodeTerminal(ns, v1alpha1.NodeSkipped, "", "skipped: node managed by the Machine Config Operator")
 			return nil
 		}
+		if v := targetVersion(mr); v != "" && kube.KubeletVersion(node) == v {
+			setNodeTerminal(ns, v1alpha1.NodeSkipped, "", "skipped: node already at target version "+v)
+			return nil
+		}
 		now := metav1.Now()
 		ns.StartTime = &now
 		ns.EndTime = nil
@@ -171,6 +177,12 @@ func (r *MaintenanceRequestReconciler) stepNode(
 		return nil
 
 	case v1alpha1.NodePostCheck:
+		// Replacement supersedes uncordon: the drained node is destroyed, not
+		// returned to service.
+		if mr.Spec.ReplaceNodes() {
+			ns.Phase = v1alpha1.NodeReplacing
+			return nil
+		}
 		if !mr.Spec.UncordonAfter {
 			r.observeDrainDuration(ns, "success")
 			setNodeTerminal(ns, v1alpha1.NodeCompleted, "", "drained; left cordoned per spec")
@@ -191,6 +203,57 @@ func (r *MaintenanceRequestReconciler) stepNode(
 		r.observeDrainDuration(ns, "success")
 		setNodeTerminal(ns, v1alpha1.NodeCompleted, "", "drained and uncordoned")
 		r.audit.Record(mr, corev1.EventTypeNormal, audit.ActionNodeUncordoned, "node uncordoned", map[string]string{"node": ns.Node})
+		*inFlight--
+		return nil
+
+	case v1alpha1.NodeReplacing:
+		ref, found, err := r.executor.Replace(ctx, ns.Node, mr.Spec.EffectiveMachineAPI())
+		if err != nil {
+			return err
+		}
+		if !found {
+			setNodeBlocked(ns, v1alpha1.BlockMachineNotFound, "no Machine backs this node; cannot replace")
+			metrics.BlockedDrainsTotal.WithLabelValues(v1alpha1.BlockMachineNotFound).Inc()
+			r.audit.Record(mr, corev1.EventTypeWarning, audit.ActionNodeBlocked, "node replacement blocked: no backing Machine",
+				map[string]string{"node": ns.Node})
+			*inFlight--
+			return nil
+		}
+		ns.Message = "deleted " + ref.String() + "; awaiting replacement"
+		ns.Phase = v1alpha1.NodeAwaitingReplacement
+		r.audit.Record(mr, corev1.EventTypeNormal, audit.ActionNodeReplacing, "node Machine deleted",
+			map[string]string{"node": ns.Node, "machine": ref.String()})
+		return nil
+
+	case v1alpha1.NodeAwaitingReplacement:
+		gone, err := r.executor.NodeGone(ctx, ns.Node)
+		if err != nil {
+			return err
+		}
+		if !gone {
+			if r.replacementTimedOut(mr, ns) {
+				r.blockReplacement(mr, ns, "replacement timed out: old node still present", inFlight)
+			}
+			return nil
+		}
+		// Old node removed. If a target version is set, require a Ready node at
+		// that version before declaring success (best-effort verification).
+		if v := targetVersion(mr); v != "" {
+			ok, err := r.kube.ReadyNodeAtVersion(ctx, v)
+			if err != nil {
+				return err
+			}
+			if !ok {
+				if r.replacementTimedOut(mr, ns) {
+					r.blockReplacement(mr, ns, "replacement timed out: no Ready node at "+v, inFlight)
+				}
+				return nil
+			}
+		}
+		r.observeDrainDuration(ns, "replaced")
+		metrics.NodeReplacementsTotal.WithLabelValues("success").Inc()
+		setNodeTerminal(ns, v1alpha1.NodeCompleted, "", "node replaced")
+		r.audit.Record(mr, corev1.EventTypeNormal, audit.ActionNodeReplaced, "node replaced", map[string]string{"node": ns.Node})
 		*inFlight--
 		return nil
 
@@ -248,7 +311,8 @@ func recomputeSummary(mr *v1alpha1.MaintenanceRequest) {
 		switch mr.Status.Nodes[i].Phase {
 		case v1alpha1.NodePending:
 			s.Pending++
-		case v1alpha1.NodeCordoning, v1alpha1.NodeDraining, v1alpha1.NodePostCheck, v1alpha1.NodeUncordoning:
+		case v1alpha1.NodeCordoning, v1alpha1.NodeDraining, v1alpha1.NodePostCheck, v1alpha1.NodeUncordoning,
+			v1alpha1.NodeReplacing, v1alpha1.NodeAwaitingReplacement:
 			s.InProgress++
 		case v1alpha1.NodeCompleted:
 			s.Completed++
@@ -284,7 +348,8 @@ func countInFlight(mr *v1alpha1.MaintenanceRequest) int32 {
 	var n int32
 	for i := range mr.Status.Nodes {
 		switch mr.Status.Nodes[i].Phase {
-		case v1alpha1.NodeCordoning, v1alpha1.NodeDraining, v1alpha1.NodePostCheck, v1alpha1.NodeUncordoning:
+		case v1alpha1.NodeCordoning, v1alpha1.NodeDraining, v1alpha1.NodePostCheck, v1alpha1.NodeUncordoning,
+			v1alpha1.NodeReplacing, v1alpha1.NodeAwaitingReplacement:
 			n++
 		}
 	}
@@ -347,4 +412,23 @@ func (r *MaintenanceRequestReconciler) observeDrainDuration(ns *v1alpha1.NodeExe
 		return
 	}
 	metrics.DrainDurationSeconds.WithLabelValues(result).Observe(time.Since(ns.StartTime.Time).Seconds())
+}
+
+// targetVersion returns the request's target kubelet version, or "" when none is
+// set (or the request does not replace nodes).
+func targetVersion(mr *v1alpha1.MaintenanceRequest) string {
+	if mr.Spec.Upgrade == nil {
+		return ""
+	}
+	return mr.Spec.Upgrade.TargetKubeletVersion
+}
+
+// blockReplacement marks a node Blocked on a replacement failure, records the
+// metric/audit and releases its in-flight slot.
+func (r *MaintenanceRequestReconciler) blockReplacement(mr *v1alpha1.MaintenanceRequest, ns *v1alpha1.NodeExecutionStatus, msg string, inFlight *int32) {
+	setNodeBlocked(ns, v1alpha1.BlockReplaceTimeout, msg)
+	metrics.BlockedDrainsTotal.WithLabelValues(v1alpha1.BlockReplaceTimeout).Inc()
+	metrics.NodeReplacementsTotal.WithLabelValues("timeout").Inc()
+	r.audit.Record(mr, corev1.EventTypeWarning, audit.ActionNodeBlocked, msg, map[string]string{"node": ns.Node})
+	*inFlight--
 }

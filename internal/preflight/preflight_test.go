@@ -165,6 +165,45 @@ func TestPreflightMissingNode(t *testing.T) {
 	mustCode(t, results, v1alpha1.CodeNodeNotFound, v1alpha1.CheckFail)
 }
 
+func TestReplacementDenied(t *testing.T) {
+	w := mkNode("w1", nil, true, false)
+	eng := newEngine(t, w)
+	// Default policy forbids node replacement.
+	pol := &policy.Effective{Spec: policy.WithDefaults(v1alpha1.MaintenancePolicySpec{})}
+	mr := &v1alpha1.MaintenanceRequest{Spec: v1alpha1.MaintenanceSpec{
+		Mode:     v1alpha1.ModeExecute,
+		Upgrade:  &v1alpha1.UpgradeSpec{Strategy: v1alpha1.UpgradeReplaceNode},
+		Approval: v1alpha1.ApprovalSpec{Policy: v1alpha1.ApprovalAuto},
+	}}
+	nodes := []corev1.Node{*w}
+	results, err := eng.Run(context.Background(), preflight.Input{Request: mr, Policy: pol, Nodes: nodes, Universe: nodes, Now: time.Now()})
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	mustCode(t, results, v1alpha1.CodeReplacementDenied, v1alpha1.CheckFail)
+}
+
+func TestReplacementAlreadyAtVersion(t *testing.T) {
+	w := mkNode("w1", nil, true, false)
+	w.Status.NodeInfo.KubeletVersion = "v1.30.2"
+	eng := newEngine(t, w)
+	pol := &policy.Effective{Spec: policy.WithDefaults(v1alpha1.MaintenancePolicySpec{AllowNodeReplacement: true})}
+	mr := &v1alpha1.MaintenanceRequest{Spec: v1alpha1.MaintenanceSpec{
+		Mode:     v1alpha1.ModeExecute,
+		Upgrade:  &v1alpha1.UpgradeSpec{Strategy: v1alpha1.UpgradeReplaceNode, TargetKubeletVersion: "v1.30.2"},
+		Approval: v1alpha1.ApprovalSpec{Policy: v1alpha1.ApprovalAuto},
+	}}
+	nodes := []corev1.Node{*w}
+	results, err := eng.Run(context.Background(), preflight.Input{Request: mr, Policy: pol, Nodes: nodes, Universe: nodes, Now: time.Now()})
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	mustCode(t, results, v1alpha1.CodeAlreadyAtVersion, v1alpha1.CheckWarn)
+	if hasCode(results, v1alpha1.CodeMachineNotFound) {
+		t.Error("a node already at target version must not trigger a machine lookup")
+	}
+}
+
 func TestWindowsOpen(t *testing.T) {
 	// A request window firing every minute with a one-hour duration is open now.
 	mr := &v1alpha1.MaintenanceRequest{Spec: v1alpha1.MaintenanceSpec{

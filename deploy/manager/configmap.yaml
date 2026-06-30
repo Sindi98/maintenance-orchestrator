@@ -20,6 +20,9 @@ data:
     globalRequeueInterval: "30s"
     defaultDrainTimeout: "15m"
     defaultGlobalTimeout: "2h"
+    # Wait budget for a replacement node when a request with spec.upgrade leaves
+    # replacementTimeout unset.
+    defaultReplacementTimeout: "20m"
     logLevel: "info"
     logFormat: "json"
     enableK8sEvents: true
