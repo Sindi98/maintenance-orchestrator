@@ -17,6 +17,49 @@ are expressed as patches to `spec`.
 
 ---
 
+## 🚀 Quickstart (multi-node, with the graphical interface)
+
+You need a **multi-node** cluster — the only place maintenance **actually acts**. Example with
+`kind` (1 control-plane + 3 workers):
+```bash
+# 1) multi-node kind cluster
+cat <<EOF | kind create cluster --name mo-demo --config -
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
+  - role: worker
+  - role: worker
+  - role: worker
+EOF
+# 2) build the image + load it into the kind cluster
+docker build -t maintenance-orchestrator:latest .
+kind load docker-image maintenance-orchestrator:latest --name mo-demo
+# 3) install controller + dashboard + default policy
+kubectl apply -k deploy
+kubectl apply -f deploy/samples/policy-cluster-default.yaml
+kubectl -n maintenance-orchestrator-system rollout status deploy/maintenance-orchestrator
+# 4) open the dashboard
+kubectl -n maintenance-orchestrator-system port-forward svc/maintenance-orchestrator-ui 8082:8082
+```
+Open **http://localhost:8082** (keep the `port-forward` running). Full usage examples
+(DryRun → Execute, approval, pool rolling): [`docs/DEMO.en.md`](docs/DEMO.en.md).
+Detailed installation (registry/OpenShift too): [`docs/INSTALL.en.md`](docs/INSTALL.en.md).
+
+> ⚠️ **You need a multi-node cluster.** On a single node (e.g. Docker Desktop) the only node
+> is the control-plane: the guardrails block every `Execute` **on purpose**, so it *appears*
+> to "do nothing". To watch it act (cordon → drain → uncordon) use multi-node `kind` (above).
+
+### 📚 Documentation
+| Topic | 🇮🇹 Italian | 🇬🇧 English |
+|---|---|---|
+| Overview | [`README.md`](README.md) | this file |
+| Installation (complete) | [`docs/INSTALL.md`](docs/INSTALL.md) | [`docs/INSTALL.en.md`](docs/INSTALL.en.md) |
+| Demo / examples (multi-node `kind`) | [`docs/DEMO.md`](docs/DEMO.md) | [`docs/DEMO.en.md`](docs/DEMO.en.md) |
+| Architecture / design | [`docs/DESIGN.md`](docs/DESIGN.md) | [`docs/DESIGN.en.md`](docs/DESIGN.en.md) |
+
+---
+
 ## Table of contents
 
 - [Goal](#goal)
@@ -175,57 +218,14 @@ Precedence: **defaults → YAML file (`--config` / `CONFIG_FILE`) → environmen
 | `AUDIT_EXPORT_PATH`       | _(empty)_                                              | JSON-lines file the audit logger appends to   |
 | `DEFAULT_POOL_KEYS`       | well-known pool labels (OCP, EKS, GKE, AKS, Karpenter) | Node-label keys treated as pool keys (CSV)    |
 
-## Deploy on Kubernetes
+## Installation
 
-> 📘 **Complete, precise install guide** (prerequisites, image, 3 methods, verification,
-> config, OpenShift, upgrade, uninstall, troubleshooting): [`docs/INSTALL.en.md`](docs/INSTALL.en.md).
-
-```bash
-# 1) Image: build and push to a registry reachable from the cluster
-make docker-build docker-push IMG=registry.example.com/maintenance-orchestrator:v0.1.0
-
-# 2) CRDs
-kubectl apply -f deploy/crd
-
-# 3) Namespace + RBAC (SA, ClusterRole/Binding, leader-election Role/Binding)
-kubectl apply -f deploy/manager/namespace.yaml
-kubectl apply -f deploy/rbac
-
-# 4) Default policy (the name expected by DEFAULT_POLICY_NAME)
-kubectl apply -f deploy/samples/policy-cluster-default.yaml
-
-# 5) Config + controller + metrics service
-kubectl apply -f deploy/manager/configmap.yaml
-kubectl apply -f deploy/manager/deployment.yaml
-kubectl apply -f deploy/manager/service.yaml
-
-# 6) Set the pushed image (the deployment ships :latest as a placeholder)
-kubectl -n maintenance-orchestrator-system set image \
-  deployment/maintenance-orchestrator \
-  manager=registry.example.com/maintenance-orchestrator:v0.1.0
-
-# (optional)
-kubectl apply -f deploy/manager/networkpolicy.yaml
-kubectl apply -f deploy/manager/servicemonitor.yaml
-```
-
-Alternatively, `kubectl apply -k deploy` (Kustomize) applies CRDs, RBAC and the
-manager in one shot; then apply the default policy. `make deploy` applies namespace,
-CRDs, RBAC, configmap, deployment and service.
-
-## Deploy on OpenShift
-
-Identical, with `oc apply`. Specific notes:
-
-- **SCC**: the pod runs non-root, with no added capabilities, a `RuntimeDefault`
-  `seccompProfile` and a read-only root FS → compatible with `restricted-v2` **without**
-  a custom SCC. `runAsUser` is not pinned, so the SCC assigns an arbitrary uid.
-- **Monitoring**: to scrape via user-workload-monitoring, enable it and apply
-  `deploy/manager/servicemonitor.yaml`.
-- **MCO**: nodes being reconfigured by the Machine Config Operator are marked
-  `Skipped` to avoid interfering.
-- **Machine API**: for pools, use the `machine.openshift.io/cluster-api-machineset`
-  label as `poolKey` (see `deploy/samples/mreq-pool-rolling-approval.yaml`).
+👉 **There is ONE installation guide to follow:** [`docs/INSTALL.en.md`](docs/INSTALL.en.md) (🇬🇧) ·
+[`docs/INSTALL.md`](docs/INSTALL.md) (🇮🇹).
+It covers prerequisites, image build, distribution (Docker Desktop / kind / registry /
+private registry / air-gapped), the 3 install methods, verification, dashboard access, the
+configuration reference, OpenShift, upgrade, uninstall and troubleshooting.
+The quickstart (Docker Desktop, with the GUI) is at the top of this README.
 
 ## API / CRD model
 

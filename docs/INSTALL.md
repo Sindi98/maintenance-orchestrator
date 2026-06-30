@@ -1,6 +1,9 @@
 # Guida d'installazione — Maintenance Orchestrator
 
 > 🇮🇹 Italiano · 🇬🇧 English version: [`INSTALL.en.md`](INSTALL.en.md)
+>
+> 📍 **Questa è l'UNICA guida d'installazione da seguire.** Il README contiene solo un avvio
+> rapido; `DEMO.md` mostra solo esempi d'uso e presuppone l'installazione fatta da qui.
 
 Questa guida documenta **ogni passo** dell'installazione, senza dare nulla per scontato:
 prerequisiti esatti, build dell'immagine, distribuzione dell'immagine al cluster,
