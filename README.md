@@ -122,6 +122,8 @@ Precedenza: **default -> file YAML (`--config` / `CONFIG_FILE`) -> variabili d'a
 | `AUDIT_EXPORT_PATH`       | _(vuoto)_                                              | File JSON-lines su cui appende l'audit         |
 | `DEFAULT_POOL_KEYS`       | label di pool note (OCP, EKS, GKE, AKS, Karpenter)     | Chiavi label trattate come pool (CSV)         |
 ## Deploy su Kubernetes
+> 📘 Guida d'installazione **completa e precisa** (prerequisiti, immagine, 3 metodi,
+> verifica, config, OpenShift, upgrade, uninstall, troubleshooting): [`docs/INSTALL.md`](docs/INSTALL.md).
 ```bash
 # 1) Immagine: build e push su un registry raggiungibile dal cluster
 make docker-build docker-push IMG=registry.example.com/maintenance-orchestrator:v0.1.0

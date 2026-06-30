@@ -82,9 +82,12 @@ deploy: ## Deploy namespace, CRDs, RBAC, config and the manager
 	kubectl apply -f deploy/manager/configmap.yaml
 	kubectl apply -f deploy/manager/deployment.yaml
 	kubectl apply -f deploy/manager/service.yaml
+	kubectl apply -f deploy/manager/ui-service.yaml
+	@echo ">> Next: kubectl apply -f deploy/samples/policy-cluster-default.yaml"
 
 .PHONY: undeploy
 undeploy: ## Remove the controller deployment from the cluster
+	kubectl delete -f deploy/manager/ui-service.yaml --ignore-not-found
 	kubectl delete -f deploy/manager/service.yaml --ignore-not-found
 	kubectl delete -f deploy/manager/deployment.yaml --ignore-not-found
 	kubectl delete -f deploy/manager/configmap.yaml --ignore-not-found
