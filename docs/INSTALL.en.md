@@ -1,6 +1,9 @@
 # Installation guide — Maintenance Orchestrator
 
 > 🇬🇧 English · 🇮🇹 Versione italiana: [`INSTALL.md`](INSTALL.md)
+>
+> 📍 **This is the ONE installation guide to follow.** The README only has a quickstart;
+> `DEMO.en.md` shows usage examples and assumes you installed from here.
 
 This guide documents **every step** of the installation, assuming nothing: exact
 prerequisites, image build, image distribution to the cluster, install (3 methods),

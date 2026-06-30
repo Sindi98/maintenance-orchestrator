@@ -147,44 +147,13 @@ Precedenza: **default -> file YAML (`--config` / `CONFIG_FILE`) -> variabili d'a
 | `DEFAULT_POLICY_NAME`     | `cluster-default`                                      | Policy usata senza `policyRef`                |
 | `AUDIT_EXPORT_PATH`       | _(vuoto)_                                              | File JSON-lines su cui appende l'audit         |
 | `DEFAULT_POOL_KEYS`       | label di pool note (OCP, EKS, GKE, AKS, Karpenter)     | Chiavi label trattate come pool (CSV)         |
-## Deploy su Kubernetes
-> 📘 Guida d'installazione **completa e precisa** (prerequisiti, immagine, 3 metodi,
-> verifica, config, OpenShift, upgrade, uninstall, troubleshooting): [`docs/INSTALL.md`](docs/INSTALL.md).
-```bash
-# 1) Immagine: build e push su un registry raggiungibile dal cluster
-make docker-build docker-push IMG=registry.example.com/maintenance-orchestrator:v0.1.0
-# 2) CRD
-kubectl apply -f deploy/crd
-# 3) Namespace + RBAC (SA, ClusterRole/Binding, leader-election Role/Binding)
-kubectl apply -f deploy/manager/namespace.yaml
-kubectl apply -f deploy/rbac
-# 4) Policy di default (nome atteso da DEFAULT_POLICY_NAME)
-kubectl apply -f deploy/samples/policy-cluster-default.yaml
-# 5) Config + controller + service metriche
-kubectl apply -f deploy/manager/configmap.yaml
-kubectl apply -f deploy/manager/deployment.yaml
-kubectl apply -f deploy/manager/service.yaml
-# 6) Imposta l'immagine pushata (la deployment usa :latest come placeholder)
-kubectl -n maintenance-orchestrator-system set image \
-  deployment/maintenance-orchestrator \
-  manager=registry.example.com/maintenance-orchestrator:v0.1.0
-# (opzionali)
-kubectl apply -f deploy/manager/networkpolicy.yaml
-kubectl apply -f deploy/manager/servicemonitor.yaml
-```
-In alternativa `make deploy` applica namespace, CRD, RBAC, configmap, deployment e
-service (ricorda comunque la policy di default e l'immagine).
-## Deploy su OpenShift
-Identico, con `oc apply`. Note specifiche:
-- **SCC**: il pod gira non-root, senza capability aggiunte, con `seccompProfile`
-  `RuntimeDefault` e root FS read-only -> compatibile con `restricted-v2` **senza**
-  SCC custom. Non viene fissato `runAsUser`, cosi la SCC assegna un uid arbitrario.
-- **Monitoring**: per lo scrape via user-workload-monitoring abilita quel
-  monitoring e applica `deploy/manager/servicemonitor.yaml`.
-- **MCO**: i nodi in aggiornamento Machine Config vengono marcati `Skipped` per non
-  interferire.
-- **Machine API**: per i pool usa la label `machine.openshift.io/cluster-api-machineset`
-  come `poolKey` (vedi `deploy/samples/mreq-pool-rolling-approval.yaml`).
+## Installazione
+👉 **C'è UNA sola guida d'installazione da seguire:** [`docs/INSTALL.md`](docs/INSTALL.md) (🇮🇹) ·
+[`docs/INSTALL.en.md`](docs/INSTALL.en.md) (🇬🇧).
+Copre prerequisiti, build dell'immagine, distribuzione (Docker Desktop / kind / registry /
+registry privato / air-gapped), i 3 metodi d'installazione, verifica, accesso alla dashboard,
+riferimento di configurazione, OpenShift, upgrade, disinstallazione e troubleshooting.
+L'avvio rapido (Docker Desktop, con GUI) è in cima a questo README.
 ## Modello API / CRD
 ### MaintenanceRequest (`mreq`) - campi principali di `spec`
 | Campo | Tipo | Note |

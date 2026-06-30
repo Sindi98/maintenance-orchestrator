@@ -1,12 +1,11 @@
-# Quickstart & Demo — Maintenance Orchestrator
+# Demo & usage — Maintenance Orchestrator
 
 > 🇬🇧 English · 🇮🇹 Versione italiana: [`DEMO.md`](DEMO.md)
-
-This guide shows **how to use** the Maintenance Orchestrator and **how to simulate it** on
-Docker Desktop, both with the built-in single-node Kubernetes and with a multi-node `kind`
-cluster (which runs on the same Docker engine as Docker Desktop).
-
-For the **full installation** see [`INSTALL.en.md`](INSTALL.en.md).
+>
+> 📍 **To INSTALL, follow only [`INSTALL.en.md`](INSTALL.en.md).** This is NOT an install
+> guide: it shows **how to use** the orchestrator and **how to simulate** it on Docker
+> Desktop (single-node) or a multi-node `kind` cluster, assuming it is already installed.
+> The `kubectl apply -k deploy` commands below are repeated only so the demo is self-contained.
 
 ---
 
