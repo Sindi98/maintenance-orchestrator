@@ -201,7 +201,24 @@ kubectl -n maintenance-orchestrator-system port-forward svc/maintenance-orchestr
 curl -s localhost:8080/metrics | grep -E 'maintenance_(requests|success|failure)|preflight_failures|blocked_drains|active_maintenances'
 ```
 
-### 3.6 Pulizia parziale / Partial cleanup
+### 3.6 Dashboard web / Web dashboard
+
+🇮🇹 La dashboard integrata è abilitata di default nel ConfigMap (`uiEnabled: true`).
+Esponila e aprila nel browser — elenca le richieste con stato **live**, mostra
+preflight/plan/per-nodo, crea richieste e fa approve/pausa/cancel.
+
+🇬🇧 The built-in dashboard is on by default in the ConfigMap (`uiEnabled: true`).
+Port-forward it and open the browser — live request list, preflight/plan/per-node
+detail, create requests, and approve/pause/cancel.
+
+```bash
+kubectl -n maintenance-orchestrator-system port-forward svc/maintenance-orchestrator-ui 8082:8082
+# IT/EN: apri / open  ->  http://localhost:8082
+```
+> ⚠️ Nessuna autenticazione: solo `ClusterIP` + port-forward (o ingress con auth).
+> No authentication: `ClusterIP` + port-forward only (or an authenticating ingress).
+
+### 3.7 Pulizia parziale / Partial cleanup
 
 ```bash
 kubectl delete mreq node-dryrun try-controlplane --ignore-not-found

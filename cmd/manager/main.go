@@ -17,6 +17,7 @@ import (
 	"github.com/Sindi98/maintenance-orchestrator/internal/controller"
 	"github.com/Sindi98/maintenance-orchestrator/internal/logging"
 	"github.com/Sindi98/maintenance-orchestrator/internal/metrics"
+	"github.com/Sindi98/maintenance-orchestrator/internal/ui"
 )
 
 var scheme = runtime.NewScheme()
@@ -89,9 +90,17 @@ func main() {
 		os.Exit(1)
 	}
 
+	if cfg.UIEnabled {
+		if err := mgr.Add(ui.NewServer(mgr.GetClient(), cfg.UIAddr, ctrl.Log.WithName("ui"))); err != nil {
+			setupLog.Error(err, "unable to add web dashboard")
+			os.Exit(1)
+		}
+	}
+
 	setupLog.Info("starting maintenance-orchestrator",
 		"metricsAddr", cfg.MetricsAddr,
 		"probeAddr", cfg.ProbeAddr,
+		"uiEnabled", cfg.UIEnabled,
 		"leaderElection", cfg.LeaderElection,
 		"reconcileConcurrency", cfg.ReconcileConcurrency,
 	)

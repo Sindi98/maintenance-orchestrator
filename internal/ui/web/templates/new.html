@@ -1,0 +1,80 @@
+{{define "title"}}New request &middot; Maintenance Orchestrator{{end}}
+{{define "content"}}
+<p class="crumb"><a href="/">&larr; all requests</a></p>
+<h1>New maintenance request</h1>
+{{if .Error}}<p class="err">&#9888; {{.Error}}</p>{{end}}
+
+<form method="post" action="/requests" class="form card">
+  <div class="row">
+    <label>Name<input name="name" value="{{.Form.name}}" required pattern="[a-z0-9-]+" placeholder="patch-workers"></label>
+    <label>Mode
+      <select name="mode">
+        {{- $f := .Form}}{{range .Modes}}<option value="{{.}}" {{if eq $f.mode .}}selected{{end}}>{{.}}</option>{{end}}
+      </select>
+    </label>
+  </div>
+  <div class="row">
+    <label>Reason<input name="reason" value="{{.Form.reason}}" required placeholder="kernel patch"></label>
+    <label>Requested by<input name="requestedBy" value="{{.Form.requestedBy}}" required placeholder="you@example.com"></label>
+  </div>
+
+  <fieldset>
+    <legend>Target</legend>
+    <label>Type
+      <select name="targetType">
+        {{- $f := .Form}}
+        {{- range $v := list "Node" "NodeSelector" "Pool"}}<option value="{{$v}}" {{if eq $f.targetType $v}}selected{{end}}>{{$v}}</option>{{end}}
+      </select>
+    </label>
+    <label>Node names <small>(Node) — comma/space separated</small><input name="nodeNames" value="{{.Form.nodeNames}}" placeholder="worker-1 worker-2"></label>
+    <label>Selector <small>(NodeSelector) — key=value,key=value</small><input name="selector" value="{{.Form.selector}}" placeholder="pool=demo"></label>
+    <div class="row">
+      <label>Pool key <small>(Pool)</small><input name="poolKey" value="{{.Form.poolKey}}" placeholder="agentpool"></label>
+      <label>Pool value<input name="poolValue" value="{{.Form.poolValue}}"></label>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Strategy &amp; approval</legend>
+    <div class="row">
+      <label>Strategy
+        <select name="strategy">
+          {{- $f := .Form}}{{range .Strats}}<option value="{{.}}" {{if eq $f.strategy .}}selected{{end}}>{{.}}</option>{{end}}
+        </select>
+      </label>
+      <label>Max concurrent<input type="number" min="1" name="maxConcurrent" value="{{.Form.maxConcurrent}}"></label>
+      <label>Batch size <small>(Batched)</small><input type="number" min="1" name="batchSize" value="{{.Form.batchSize}}"></label>
+    </div>
+    <div class="row">
+      <label>Approval policy
+        <select name="approval">
+          {{- $f := .Form}}
+          {{- range $v := list "AutoApprove" "ManualBeforeDrain" "ManualBeforeUncordon" "ManualBeforeBoth"}}<option value="{{$v}}" {{if eq $f.approval $v}}selected{{end}}>{{$v}}</option>{{end}}
+        </select>
+      </label>
+      <label>Policy ref <small>(optional)</small><input name="policyRef" value="{{.Form.policyRef}}" placeholder="cluster-default"></label>
+    </div>
+    <label class="check"><input type="checkbox" name="uncordonAfter" {{if .Form.uncordonAfter}}checked{{end}}> Uncordon after drain</label>
+    <label class="check"><input type="checkbox" name="allowControlPlane"> Allow control-plane (policy-gated)</label>
+    <label class="check"><input type="checkbox" name="force"> Force eviction (policy-gated)</label>
+  </fieldset>
+
+  <fieldset>
+    <legend>Upgrade (node replacement)</legend>
+    <label class="check"><input type="checkbox" name="upgrade"> Replace nodes after drain</label>
+    <div class="row">
+      <label>Machine API
+        <select name="machineAPI">
+          {{- range $v := list "Auto" "ClusterAPI" "OpenShift"}}<option value="{{$v}}">{{$v}}</option>{{end}}
+        </select>
+      </label>
+      <label>Target kubelet version <small>(optional)</small><input name="targetKubeletVersion" placeholder="v1.30.2"></label>
+    </div>
+  </fieldset>
+
+  <div class="actions">
+    <button class="btn primary" type="submit">Create request</button>
+    <a class="btn ghost" href="/">Cancel</a>
+  </div>
+</form>
+{{end}}

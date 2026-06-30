@@ -1,0 +1,33 @@
+{{define "title"}}{{.Request.Name}} &middot; Maintenance Orchestrator{{end}}
+{{define "content"}}
+{{- with .Request}}
+<p class="crumb"><a href="/">&larr; all requests</a></p>
+<h1>{{.Name}}</h1>
+
+<section class="card">
+  <h2>Spec</h2>
+  <dl class="kv">
+    <dt>Mode</dt><dd>{{.Spec.Mode}}</dd>
+    <dt>Reason</dt><dd>{{.Spec.Reason}}</dd>
+    <dt>Requested by</dt><dd>{{.Spec.RequestedBy}}</dd>
+    <dt>Target</dt><dd>
+      <code>{{.Spec.Target.Type}}</code>
+      {{- if .Spec.Target.NodeNames}}: {{join .Spec.Target.NodeNames ", "}}{{end}}
+      {{- with .Spec.Target.Selector}}{{range $k, $v := .MatchLabels}} <code>{{$k}}={{$v}}</code>{{end}}{{end}}
+      {{- if .Spec.Target.PoolKey}}: <code>{{.Spec.Target.PoolKey}}={{.Spec.Target.PoolValue}}</code>{{end}}
+    </dd>
+    <dt>Strategy</dt><dd>{{.Spec.Strategy}} &middot; maxConcurrent {{.Spec.MaxConcurrent}}{{if .Spec.BatchSize}} &middot; batch {{.Spec.BatchSize}}{{end}}</dd>
+    <dt>Approval</dt><dd>{{.Spec.Approval.Policy}}</dd>
+    <dt>Uncordon after</dt><dd>{{.Spec.UncordonAfter}}</dd>
+    {{- if .Spec.Upgrade}}
+    <dt>Upgrade</dt><dd>{{.Spec.Upgrade.Strategy}} &middot; api {{.Spec.Upgrade.MachineAPI}}{{if .Spec.Upgrade.TargetKubeletVersion}} &middot; target <code>{{.Spec.Upgrade.TargetKubeletVersion}}</code>{{end}}</dd>
+    {{- end}}
+    {{- if .Spec.PolicyRef}}<dt>Policy</dt><dd>{{.Spec.PolicyRef.Name}}</dd>{{end}}
+  </dl>
+</section>
+
+<section class="card" data-src="/requests/{{.Name}}/status">
+  {{template "request_status" .}}
+</section>
+{{- end}}
+{{end}}

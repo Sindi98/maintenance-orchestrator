@@ -1,0 +1,104 @@
+{{define "request_status"}}
+<h2>Status
+  <span class="badge {{phaseClass .Status.Phase}}">{{if .Status.Phase}}{{.Status.Phase}}{{else}}Pending{{end}}</span>
+</h2>
+
+{{- if .Status.Message}}<p class="msg">{{.Status.Message}}</p>{{end}}
+{{- if .Status.LastError}}<p class="err">&#9888; {{.Status.LastError}}</p>{{end}}
+
+<div class="actions">
+  {{- if eq .Status.Phase "AwaitingApproval"}}
+  <form method="post" action="/requests/{{.Name}}/approve">
+    <input type="hidden" name="gate" value="{{.Status.ApprovalGate}}">
+    <button class="btn ok" type="submit">&#10003; Approve {{.Status.ApprovalGate}}</button>
+  </form>
+  <form method="post" action="/requests/{{.Name}}/reject">
+    <input type="hidden" name="gate" value="{{.Status.ApprovalGate}}">
+    <button class="btn bad" type="submit">&#10007; Reject</button>
+  </form>
+  {{- end}}
+  {{- if eq .Status.Phase "Paused"}}
+  <form method="post" action="/requests/{{.Name}}/resume"><button class="btn" type="submit">&#9654; Resume</button></form>
+  {{- else if canPause .Status.Phase}}
+  <form method="post" action="/requests/{{.Name}}/pause"><button class="btn" type="submit">&#10073;&#10073; Pause</button></form>
+  {{- end}}
+  {{- if not (isTerminal .Status.Phase)}}
+  <form method="post" action="/requests/{{.Name}}/cancel" onsubmit="return confirm('Cancel this maintenance request?');">
+    <button class="btn bad ghost" type="submit">Cancel</button>
+  </form>
+  {{- end}}
+</div>
+
+{{- with .Status.Summary}}{{if .Total}}
+<div class="bar big" title="{{.Completed}}/{{.Total}} done"><span style="width:{{pct .Completed .Total}}%"></span></div>
+<p class="counts">
+  <span>{{.Total}} total</span>
+  <span class="ok">{{.Completed}} done</span>
+  {{if .InProgress}}<span class="busy">{{.InProgress}} in&nbsp;progress</span>{{end}}
+  {{if .Blocked}}<span class="bad">{{.Blocked}} blocked</span>{{end}}
+  {{if .Failed}}<span class="bad">{{.Failed}} failed</span>{{end}}
+  {{if .Skipped}}<span class="muted">{{.Skipped}} skipped</span>{{end}}
+</p>
+{{end}}{{end}}
+
+{{- if .Status.Plan}}{{with .Status.Plan}}
+<h3>Plan</h3>
+<p>{{.TotalNodes}} node(s), {{len .Batches}} batch(es), maxConcurrent {{.MaxConcurrent}} &middot;
+  risk <strong class="{{if ge .RiskScore 60}}bad{{else if ge .RiskScore 30}}wait{{else}}ok{{end}}">{{.RiskScore}}/100</strong>
+  &middot; ~{{.Impact.PodsToEvict}} pods, {{.Impact.AppsAffected}} app(s)</p>
+{{- if .RiskFactors}}<ul class="factors">{{range .RiskFactors}}<li>{{.}}</li>{{end}}</ul>{{end}}
+{{end}}{{end}}
+
+{{- if .Status.Nodes}}
+<h3>Nodes</h3>
+<table class="grid">
+  <thead><tr><th>Node</th><th>Phase</th><th>Batch</th><th>Pods</th><th>Detail</th></tr></thead>
+  <tbody>
+  {{- range .Status.Nodes}}
+    <tr>
+      <td>{{.Node}}</td>
+      <td><span class="badge {{nodePhaseClass .Phase}}">{{.Phase}}</span></td>
+      <td>{{.Batch}}</td>
+      <td>{{.EvictedPods}}/{{.TotalPods}}{{if .RemainingPods}} ({{.RemainingPods}} left){{end}}</td>
+      <td class="msg">{{if .BlockReason}}<code class="bad">{{.BlockReason}}</code> {{end}}{{.Message}}</td>
+    </tr>
+  {{- end}}
+  </tbody>
+</table>
+{{- end}}
+
+{{- if .Status.Preflight}}
+<h3>Preflight</h3>
+<table class="grid">
+  <thead><tr><th>Status</th><th>Code</th><th>Node</th><th>Message</th></tr></thead>
+  <tbody>
+  {{- range .Status.Preflight}}
+    <tr>
+      <td><span class="badge {{checkClass .Status}}">{{.Status}}</span></td>
+      <td><code>{{.Code}}</code></td>
+      <td>{{if .Node}}{{.Node}}{{else}}&mdash;{{end}}</td>
+      <td class="msg">{{.Message}}</td>
+    </tr>
+  {{- end}}
+  </tbody>
+</table>
+{{- end}}
+
+{{- if .Status.Conditions}}
+<h3>Conditions</h3>
+<table class="grid">
+  <thead><tr><th>Type</th><th>Status</th><th>Reason</th><th>Message</th><th>When</th></tr></thead>
+  <tbody>
+  {{- range .Status.Conditions}}
+    <tr>
+      <td>{{.Type}}</td>
+      <td><span class="badge {{if eq .Status "True"}}ok{{else}}muted{{end}}">{{.Status}}</span></td>
+      <td>{{.Reason}}</td>
+      <td class="msg">{{.Message}}</td>
+      <td>{{ago .LastTransitionTime}}</td>
+    </tr>
+  {{- end}}
+  </tbody>
+</table>
+{{- end}}
+{{end}}

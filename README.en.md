@@ -357,6 +357,20 @@ Health: `:8081/healthz` (liveness), `:8081/readyz` (readiness). Audit: structure
 JSON logs, optional Kubernetes Events (`ENABLE_K8S_EVENTS`) and optional JSON-lines
 export (`AUDIT_EXPORT_PATH`, mount a writable volume).
 
+## Web dashboard (UI)
+
+A built-in, server-side Go dashboard (`html/template` + vanilla JS, no Node/build
+step) lives in the manager binary. Enable it with `uiEnabled: true` / `UI_ENABLED`
+(port `uiAddr`, default `:8082`). It lists requests with **live** status/progress
+(3s auto-refresh), shows the detail (preflight, plan, per-node, conditions),
+**creates** requests, and runs the **approve/reject/pause/resume/cancel** actions.
+Policies are read-only.
+
+> ⚠️ **No authentication**: exposed only on a `ClusterIP` Service. Reach it via
+> `kubectl -n maintenance-orchestrator-system port-forward svc/maintenance-orchestrator-ui 8082:8082`
+> then http://localhost:8082 — or place it behind an authenticating ingress.
+> `uiEnabled: false` disables it entirely.
+
 ## RBAC
 
 Minimal ClusterRole: `maintenancerequests`/`maintenancepolicies` (+`/status`);

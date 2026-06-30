@@ -50,6 +50,9 @@ spec:
             - name: health
               containerPort: 8081
               protocol: TCP
+            - name: ui
+              containerPort: 8082
+              protocol: TCP
           livenessProbe:
             httpGet:
               path: /healthz

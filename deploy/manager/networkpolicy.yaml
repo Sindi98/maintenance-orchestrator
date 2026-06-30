@@ -31,12 +31,15 @@ spec:
     - Ingress
     - Egress
   ingress:
-    # Scrape and probe traffic to the controller's HTTP listeners.
+    # Scrape and probe traffic to the controller's HTTP listeners, plus the web
+    # dashboard (8082). Tighten the dashboard source to your ingress namespace.
     - ports:
         - protocol: TCP
           port: 8080
         - protocol: TCP
           port: 8081
+        - protocol: TCP
+          port: 8082
   egress:
     # Cluster DNS resolution.
     - ports:

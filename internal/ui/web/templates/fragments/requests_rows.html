@@ -1,0 +1,21 @@
+{{define "requests_rows"}}
+{{- if not .Requests}}
+<tr><td colspan="7" class="muted center">No maintenance requests yet. <a href="/new">Create one</a>.</td></tr>
+{{- end}}
+{{- range .Requests}}
+<tr>
+  <td><a href="/requests/{{.Name}}"><strong>{{.Name}}</strong></a></td>
+  <td><span class="badge {{phaseClass .Status.Phase}}">{{if .Status.Phase}}{{.Status.Phase}}{{else}}Pending{{end}}</span></td>
+  <td>{{.Spec.Mode}}</td>
+  <td>{{.Spec.Strategy}}</td>
+  <td>
+    {{- with .Status.Summary}}
+    <div class="bar" title="{{.Completed}}/{{.Total}} done"><span style="width:{{pct .Completed .Total}}%"></span></div>
+    <small>{{.Completed}}/{{.Total}}{{if .Blocked}} &middot; {{.Blocked}} blocked{{end}}{{if .Failed}} &middot; {{.Failed}} failed{{end}}</small>
+    {{- else}}<small class="muted">&mdash;</small>{{end}}
+  </td>
+  <td class="msg">{{.Status.Message}}</td>
+  <td>{{ago .CreationTimestamp}}</td>
+</tr>
+{{- end}}
+{{end}}

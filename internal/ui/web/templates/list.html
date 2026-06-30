@@ -1,0 +1,15 @@
+{{define "title"}}Requests &middot; Maintenance Orchestrator{{end}}
+{{define "content"}}
+<h1>Maintenance requests</h1>
+<table class="grid">
+  <thead>
+    <tr>
+      <th>Name</th><th>Phase</th><th>Mode</th><th>Strategy</th>
+      <th>Progress</th><th>Message</th><th>Age</th>
+    </tr>
+  </thead>
+  <tbody data-src="/fragment/requests">
+    {{template "requests_rows" .}}
+  </tbody>
+</table>
+{{end}}

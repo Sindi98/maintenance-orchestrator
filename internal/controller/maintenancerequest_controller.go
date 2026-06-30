@@ -45,7 +45,7 @@ type MaintenanceRequestReconciler struct {
 	audit     *audit.Logger
 }
 
-// +kubebuilder:rbac:groups=maintenance.platform.dev,resources=maintenancerequests,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=maintenance.platform.dev,resources=maintenancerequests,verbs=get;list;watch;create;update;patch
 // +kubebuilder:rbac:groups=maintenance.platform.dev,resources=maintenancerequests/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=maintenance.platform.dev,resources=maintenancepolicies,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch;patch

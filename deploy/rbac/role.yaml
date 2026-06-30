@@ -11,10 +11,10 @@ metadata:
     app.kubernetes.io/component: controller
     app.kubernetes.io/part-of: maintenance-orchestrator
 rules:
-  # Own custom resources.
+  # Own custom resources. 'create' lets the web dashboard submit new requests.
   - apiGroups: ["maintenance.platform.dev"]
     resources: ["maintenancerequests"]
-    verbs: ["get", "list", "watch", "update", "patch"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
   - apiGroups: ["maintenance.platform.dev"]
     resources: ["maintenancepolicies"]
     verbs: ["get", "list", "watch"]
