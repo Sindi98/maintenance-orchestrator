@@ -373,6 +373,27 @@ kubectl get mreq pool-upgrade -o jsonpath='{range .status.nodes[*]}{.node}{"  "}
 # Fasi attese: ... Draining -> Replacing -> AwaitingReplacement -> Completed
 ```
 
+> 🔧 **Per aggiornare DAVVERO la versione su `kind`** (worker **e** control-plane) non si usa
+> `spec.upgrade` (kind non ha Machine API e non supporta l'upgrade in-place): si **ricrea**
+> il cluster con una node-image più recente — è il modo ufficiale di kind, e nessun
+> controller in-cluster può farlo al posto tuo. Su Docker Desktop la versione si cambia da
+> Settings → Kubernetes.
+> ```bash
+> kind delete cluster --name mo-demo
+> cat <<EOF | kind create cluster --name mo-demo --config -
+> kind: Cluster
+> apiVersion: kind.x-k8s.io/v1alpha4
+> nodes:
+>   - role: control-plane
+>     image: kindest/node:v1.30.2     # <-- nuova versione
+>   - role: worker
+>     image: kindest/node:v1.30.2
+>   - role: worker
+>     image: kindest/node:v1.30.2
+> EOF
+> kubectl get nodes -o wide           # tutti alla nuova versione
+> ```
+
 ### 4.8 Pulizia
 
 ```bash
