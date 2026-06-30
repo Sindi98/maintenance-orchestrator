@@ -68,10 +68,19 @@ func TestCanTransition(t *testing.T) {
 		{"blocked to executing", v1alpha1.PhaseBlocked, v1alpha1.PhaseExecuting, true},
 		{"self transition", v1alpha1.PhaseExecuting, v1alpha1.PhaseExecuting, true},
 		{"any to cancelled", v1alpha1.PhaseExecuting, v1alpha1.PhaseCancelled, true},
+		// Direct-completion paths the controller actually performs: Validating
+		// completes a DryRun or a no-match target; Planned completes a plan that
+		// covers no nodes.
+		{"validating to completed", v1alpha1.PhaseValidating, v1alpha1.PhaseCompleted, true},
+		{"planned to completed", v1alpha1.PhasePlanned, v1alpha1.PhaseCompleted, true},
+		// Pause/resume paths: a Blocked request may be paused, and a plan-less
+		// paused request resumes by re-validating.
+		{"blocked to paused", v1alpha1.PhaseBlocked, v1alpha1.PhasePaused, true},
+		{"paused to validating", v1alpha1.PhasePaused, v1alpha1.PhaseValidating, true},
+		{"paused to awaiting approval", v1alpha1.PhasePaused, v1alpha1.PhaseAwaitingApproval, true},
 		// illegal jumps
 		{"pending to executing", v1alpha1.PhasePending, v1alpha1.PhaseExecuting, false},
-		{"validating to completed", v1alpha1.PhaseValidating, v1alpha1.PhaseCompleted, false},
-		{"planned to completed", v1alpha1.PhasePlanned, v1alpha1.PhaseCompleted, false},
+		{"validating to executing", v1alpha1.PhaseValidating, v1alpha1.PhaseExecuting, false},
 		{"completed to executing", v1alpha1.PhaseCompleted, v1alpha1.PhaseExecuting, false},
 		{"failed to pending", v1alpha1.PhaseFailed, v1alpha1.PhasePending, false},
 	}

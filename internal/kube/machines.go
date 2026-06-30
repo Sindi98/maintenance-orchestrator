@@ -125,20 +125,23 @@ func KubeletVersion(node *corev1.Node) string {
 	return node.Status.NodeInfo.KubeletVersion
 }
 
-// ReadyNodeAtVersion reports whether any node is Ready and reports exactly the
-// given kubelet version. It is a best-effort post-check that a replacement node
-// came up at the target version.
-func (c *Client) ReadyNodeAtVersion(ctx context.Context, version string) (bool, error) {
+// CountReadyNodesAtVersion returns how many nodes are Ready and report exactly
+// the given kubelet version. It backs the replacement post-check: comparing the
+// count against a baseline captured before replacement detects that a genuinely
+// new node joined, rather than matching a pre-existing node already at the
+// version (which makes every node in a rolling upgrade pass instantly).
+func (c *Client) CountReadyNodesAtVersion(ctx context.Context, version string) (int32, error) {
 	nodes, err := c.ListAllNodes(ctx)
 	if err != nil {
-		return false, err
+		return 0, err
 	}
+	var n int32
 	for i := range nodes {
 		if IsReady(&nodes[i]) && KubeletVersion(&nodes[i]) == version {
-			return true, nil
+			n++
 		}
 	}
-	return false, nil
+	return n, nil
 }
 
 func splitNamespacedName(s string) (ns, name string, ok bool) {

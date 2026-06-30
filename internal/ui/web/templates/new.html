@@ -55,20 +55,21 @@
       <label>Policy ref <small>(optional)</small><input name="policyRef" value="{{.Form.policyRef}}" placeholder="cluster-default"></label>
     </div>
     <label class="check"><input type="checkbox" name="uncordonAfter" {{if .Form.uncordonAfter}}checked{{end}}> Uncordon after drain</label>
-    <label class="check"><input type="checkbox" name="allowControlPlane"> Allow control-plane (policy-gated)</label>
-    <label class="check"><input type="checkbox" name="force"> Force eviction (policy-gated)</label>
+    <label class="check"><input type="checkbox" name="allowControlPlane" {{if .Form.allowControlPlane}}checked{{end}}> Allow control-plane (policy-gated)</label>
+    <label class="check"><input type="checkbox" name="force" {{if .Form.force}}checked{{end}}> Force eviction (policy-gated)</label>
   </fieldset>
 
   <fieldset>
     <legend>Upgrade (node replacement)</legend>
-    <label class="check"><input type="checkbox" name="upgrade"> Replace nodes after drain</label>
+    <label class="check"><input type="checkbox" name="upgrade" {{if .Form.upgrade}}checked{{end}}> Replace nodes after drain</label>
     <div class="row">
       <label>Machine API
         <select name="machineAPI">
-          {{- range $v := list "Auto" "ClusterAPI" "OpenShift"}}<option value="{{$v}}">{{$v}}</option>{{end}}
+          {{- $f := .Form}}
+          {{- range $v := list "Auto" "ClusterAPI" "OpenShift"}}<option value="{{$v}}" {{if eq $f.machineAPI $v}}selected{{end}}>{{$v}}</option>{{end}}
         </select>
       </label>
-      <label>Target kubelet version <small>(optional)</small><input name="targetKubeletVersion" placeholder="v1.30.2"></label>
+      <label>Target kubelet version <small>(optional)</small><input name="targetKubeletVersion" value="{{.Form.targetKubeletVersion}}" placeholder="v1.30.2"></label>
     </div>
   </fieldset>
 

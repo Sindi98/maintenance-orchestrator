@@ -90,9 +90,10 @@ func (r *MaintenanceRequestReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, nil
 	}
 
-	// Cancel has top priority from any non-terminal phase.
+	// Cancel has top priority from any non-terminal phase. A user cancel returns
+	// any cordoned nodes to service.
 	if mr.Spec.Cancel {
-		return r.cancel(ctx, mr, "cancelled by user")
+		return r.cancel(ctx, mr, "cancelled by user", true)
 	}
 
 	// Pause from an interruptible phase.
@@ -199,6 +200,27 @@ func auditFields(mr *v1alpha1.MaintenanceRequest) map[string]string {
 	}
 }
 
+// globalDrainsInFlightExcept sums the in-flight node drains across all
+// non-terminal MaintenanceRequests other than self, so a node-start decision can
+// honor the policy's cluster-wide MaxConcurrentDrains rather than only this
+// request's count. On a List error it returns 0 (fail open to the per-request
+// cap rather than stalling all progress).
+func (r *MaintenanceRequestReconciler) globalDrainsInFlightExcept(ctx context.Context, self string) int32 {
+	list := &v1alpha1.MaintenanceRequestList{}
+	if err := r.List(ctx, list); err != nil {
+		return 0
+	}
+	var n int32
+	for i := range list.Items {
+		it := &list.Items[i]
+		if it.Name == self || statemachine.IsTerminal(it.Status.Phase) {
+			continue
+		}
+		n += countInFlight(it)
+	}
+	return n
+}
+
 // refreshActiveGauge recomputes the active_maintenances gauge from cluster state.
 func (r *MaintenanceRequestReconciler) refreshActiveGauge(ctx context.Context) {
 	list := &v1alpha1.MaintenanceRequestList{}
@@ -223,16 +245,22 @@ func (r *MaintenanceRequestReconciler) complete(ctx context.Context, mr *v1alpha
 	}
 	setCondition(mr, v1alpha1.CondExecuting, metav1.ConditionFalse, "Completed", "execution finished")
 	setCondition(mr, v1alpha1.CondCompleted, metav1.ConditionTrue, "Completed", msg)
-	metrics.SuccessTotal.Inc()
-	r.audit.Record(mr, corev1.EventTypeNormal, audit.ActionCompleted, msg, nil)
 	if err := r.updateStatus(ctx, mr); err != nil {
 		return ctrl.Result{}, err
 	}
+	// Count and audit only after the terminal status is persisted, so a status
+	// conflict-retry does not double-count the success or duplicate the record.
+	metrics.SuccessTotal.Inc()
+	r.audit.Record(mr, corev1.EventTypeNormal, audit.ActionCompleted, msg, nil)
 	r.refreshActiveGauge(ctx)
 	return ctrl.Result{}, nil
 }
 
 func (r *MaintenanceRequestReconciler) fail(ctx context.Context, mr *v1alpha1.MaintenanceRequest, reason, msg string) (ctrl.Result, error) {
+	// A request that aborts mid-flight may have nodes it cordoned; return them to
+	// service (best-effort) so a failure does not strand them unschedulable.
+	r.releaseCordonedNodes(ctx, mr)
+
 	now := metav1.Now()
 	mr.Status.Phase = v1alpha1.PhaseFailed
 	mr.Status.Message = msg
@@ -241,16 +269,24 @@ func (r *MaintenanceRequestReconciler) fail(ctx context.Context, mr *v1alpha1.Ma
 		mr.Status.CompletionTime = &now
 	}
 	setCondition(mr, v1alpha1.CondFailed, metav1.ConditionTrue, reason, msg)
-	metrics.FailureTotal.WithLabelValues(reason).Inc()
-	r.audit.Record(mr, corev1.EventTypeWarning, audit.ActionFailed, msg, map[string]string{"reason": reason})
 	if err := r.updateStatus(ctx, mr); err != nil {
 		return ctrl.Result{}, err
 	}
+	metrics.FailureTotal.WithLabelValues(reason).Inc()
+	r.audit.Record(mr, corev1.EventTypeWarning, audit.ActionFailed, msg, map[string]string{"reason": reason})
 	r.refreshActiveGauge(ctx)
 	return ctrl.Result{}, nil
 }
 
-func (r *MaintenanceRequestReconciler) cancel(ctx context.Context, mr *v1alpha1.MaintenanceRequest, msg string) (ctrl.Result, error) {
+// cancel finalizes a request as Cancelled. When release is true the nodes this
+// request cordoned are returned to service (best-effort); it is false for a
+// cancellation that follows an Uncordon-gate rejection, where leaving the nodes
+// cordoned is exactly what the rejecting approver asked for.
+func (r *MaintenanceRequestReconciler) cancel(ctx context.Context, mr *v1alpha1.MaintenanceRequest, msg string, release bool) (ctrl.Result, error) {
+	if release {
+		r.releaseCordonedNodes(ctx, mr)
+	}
+
 	now := metav1.Now()
 	mr.Status.Phase = v1alpha1.PhaseCancelled
 	mr.Status.Message = msg
@@ -258,10 +294,10 @@ func (r *MaintenanceRequestReconciler) cancel(ctx context.Context, mr *v1alpha1.
 		mr.Status.CompletionTime = &now
 	}
 	setCondition(mr, v1alpha1.CondExecuting, metav1.ConditionFalse, "Cancelled", msg)
-	r.audit.Record(mr, corev1.EventTypeNormal, audit.ActionCancelled, msg, nil)
 	if err := r.updateStatus(ctx, mr); err != nil {
 		return ctrl.Result{}, err
 	}
+	r.audit.Record(mr, corev1.EventTypeNormal, audit.ActionCancelled, msg, nil)
 	r.refreshActiveGauge(ctx)
 	return ctrl.Result{}, nil
 }

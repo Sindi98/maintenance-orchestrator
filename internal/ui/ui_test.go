@@ -162,3 +162,34 @@ func TestActions(t *testing.T) {
 		t.Error("cancel did not set spec.cancel")
 	}
 }
+
+func TestCreateErrorPreservesForm(t *testing.T) {
+	_, h := newTestServer(t)
+	// reason is omitted -> validation error. uncordonAfter is omitted (a browser
+	// omits unchecked boxes); allowControlPlane is checked; upgrade fields set.
+	form := url.Values{
+		"name": {"x"}, "mode": {"Execute"}, "requestedBy": {"me"},
+		"targetType": {"Node"}, "nodeNames": {"w1"},
+		"allowControlPlane":    {"on"},
+		"upgrade":              {"on"},
+		"machineAPI":           {"OpenShift"},
+		"targetKubeletVersion": {"v1.31.0"},
+	}
+	rec := do(t, h, http.MethodPost, "/requests", form)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("create error: code %d, want 400", rec.Code)
+	}
+	body := rec.Body.String()
+	if strings.Contains(body, `name="uncordonAfter" checked`) {
+		t.Error("uncordonAfter must render unchecked when the operator omitted it")
+	}
+	if !strings.Contains(body, `name="allowControlPlane" checked`) {
+		t.Error("allowControlPlane must stay checked on error re-render")
+	}
+	if !strings.Contains(body, `value="v1.31.0"`) {
+		t.Error("targetKubeletVersion must be preserved on error re-render")
+	}
+	if !strings.Contains(body, `<option value="OpenShift" selected>`) {
+		t.Error("machineAPI selection must be preserved on error re-render")
+	}
+}

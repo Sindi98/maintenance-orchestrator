@@ -59,7 +59,7 @@ spec:
                   items:
                     type: string
                 maxConcurrentDrains:
-                  description: MaxConcurrentDrains is the hard cap on nodes draining at once across ALL requests.
+                  description: 'MaxConcurrentDrains caps how many nodes may be draining at once. It bounds both a single request (together with the request''s spec.maxConcurrent) and, on a best-effort basis, the sum across all concurrently-running requests. The cross-request cap is approximate when the controller runs with reconcileConcurrency > 1 (a brief overshoot is possible); run with reconcileConcurrency: 1 for a strict cluster-wide guarantee.'
                   type: integer
                   format: int32
                   default: 1

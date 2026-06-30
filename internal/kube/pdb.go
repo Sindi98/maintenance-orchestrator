@@ -10,14 +10,20 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// PDBForPod returns the first PodDisruptionBudget in the pod's namespace whose
-// selector matches the pod, or nil if none applies.
+// PDBForPod returns a PodDisruptionBudget in the pod's namespace whose selector
+// matches the pod, or nil if none applies. When several PDBs match the same pod
+// (which the API permits), the tightest one is returned — the first that
+// currently allows no voluntary disruptions, else any match — so the caller is
+// not misled by a non-blocking PDB when a blocking one also applies. PDB list
+// order is not guaranteed, so returning the first match alone would be
+// nondeterministic.
 func (c *Client) PDBForPod(ctx context.Context, pod *corev1.Pod) (*policyv1.PodDisruptionBudget, error) {
 	list := &policyv1.PodDisruptionBudgetList{}
 	if err := c.List(ctx, list, client.InNamespace(pod.Namespace)); err != nil {
 		return nil, err
 	}
 	podLabels := labels.Set(pod.Labels)
+	var match *policyv1.PodDisruptionBudget
 	for i := range list.Items {
 		pdb := &list.Items[i]
 		if pdb.Spec.Selector == nil {
@@ -27,11 +33,17 @@ func (c *Client) PDBForPod(ctx context.Context, pod *corev1.Pod) (*policyv1.PodD
 		if err != nil {
 			continue
 		}
-		if sel.Matches(podLabels) {
+		if !sel.Matches(podLabels) {
+			continue
+		}
+		if PDBIsTight(pdb) {
 			return pdb, nil
 		}
+		if match == nil {
+			match = pdb
+		}
 	}
-	return nil, nil
+	return match, nil
 }
 
 // PDBIsTight reports whether the PDB currently allows no voluntary disruptions

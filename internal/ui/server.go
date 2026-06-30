@@ -60,14 +60,15 @@ func (s *Server) Start(ctx context.Context) error {
 func (s *Server) routes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /", s.handleList)
 	mux.HandleFunc("GET /new", s.handleNewForm)
-	mux.HandleFunc("POST /requests", s.handleCreate)
+	// State-changing POSTs are wrapped with a same-origin (CSRF) check.
+	mux.HandleFunc("POST /requests", enforceSameOrigin(s.handleCreate))
 	mux.HandleFunc("GET /requests/{name}", s.handleDetail)
 	mux.HandleFunc("GET /requests/{name}/status", s.handleStatusFragment)
-	mux.HandleFunc("POST /requests/{name}/approve", s.handleAction(actionApprove))
-	mux.HandleFunc("POST /requests/{name}/reject", s.handleAction(actionReject))
-	mux.HandleFunc("POST /requests/{name}/pause", s.handleAction(actionPause))
-	mux.HandleFunc("POST /requests/{name}/resume", s.handleAction(actionResume))
-	mux.HandleFunc("POST /requests/{name}/cancel", s.handleAction(actionCancel))
+	mux.HandleFunc("POST /requests/{name}/approve", enforceSameOrigin(s.handleAction(actionApprove)))
+	mux.HandleFunc("POST /requests/{name}/reject", enforceSameOrigin(s.handleAction(actionReject)))
+	mux.HandleFunc("POST /requests/{name}/pause", enforceSameOrigin(s.handleAction(actionPause)))
+	mux.HandleFunc("POST /requests/{name}/resume", enforceSameOrigin(s.handleAction(actionResume)))
+	mux.HandleFunc("POST /requests/{name}/cancel", enforceSameOrigin(s.handleAction(actionCancel)))
 	mux.HandleFunc("GET /fragment/requests", s.handleListFragment)
 	mux.HandleFunc("GET /policies", s.handlePolicies)
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
