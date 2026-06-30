@@ -9,6 +9,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/Sindi98/maintenance-orchestrator/api/v1alpha1"
 	"github.com/Sindi98/maintenance-orchestrator/internal/approval"
@@ -64,6 +65,10 @@ func (r *MaintenanceRequestReconciler) reconcileExecuting(ctx context.Context, m
 	// The window keeps gating the START of new nodes; in-flight nodes finish.
 	windowOpen, werr := preflight.WindowsOpen(mr, pol.Spec, time.Now())
 	if werr != nil {
+		// Treat an unparseable window as closed so in-flight nodes still finish,
+		// but surface it: reconcilePlanned fails the request on the same error, so
+		// silently swallowing it would hide the misconfiguration during execution.
+		log.FromContext(ctx).Error(werr, "evaluating maintenance window during execution; treating as closed")
 		windowOpen = false
 	}
 
@@ -75,12 +80,27 @@ func (r *MaintenanceRequestReconciler) reconcileExecuting(ctx context.Context, m
 	concurrency := pol.Concurrency(mr.Spec.MaxConcurrent)
 	inFlight := countInFlight(mr)
 
+	// Honor the policy's cluster-wide MaxConcurrentDrains across all active
+	// requests, not just this one. Best-effort: with reconcileConcurrency > 1 a
+	// brief overshoot is possible; run with reconcileConcurrency: 1 for a strict
+	// guarantee.
+	if policyCap := pol.Spec.MaxConcurrentDrains; policyCap > 0 {
+		if budget := policyCap - r.globalDrainsInFlightExcept(ctx, mr.Name); budget < concurrency {
+			concurrency = budget
+		}
+	}
+
 	for i := range mr.Status.Nodes {
 		ns := &mr.Status.Nodes[i]
 		if ns.Batch != int32(batchIdx) || isNodeTerminal(ns.Phase) {
 			continue
 		}
 		if err := r.stepNode(ctx, mr, pol, ns, &inFlight, concurrency, windowOpen, uncordonGated); err != nil {
+			// Persist progress already applied to earlier nodes in this loop (their
+			// cluster side-effects already happened) before surfacing the error, so
+			// they are not re-driven from a stale phase on requeue.
+			recomputeSummary(mr)
+			_ = r.updateStatus(ctx, mr)
 			return ctrl.Result{}, err
 		}
 	}
@@ -207,14 +227,29 @@ func (r *MaintenanceRequestReconciler) stepNode(
 		return nil
 
 	case v1alpha1.NodeReplacing:
+		// Capture how many Ready nodes are already at the target version before we
+		// delete the Machine, so the post-check can require the count to grow
+		// (a genuinely new node) rather than matching a pre-existing one.
+		if v := targetVersion(mr); v != "" {
+			baseline, err := r.kube.CountReadyNodesAtVersion(ctx, v)
+			if err != nil {
+				return err
+			}
+			ns.ReplacementBaseline = baseline
+		}
 		ref, found, err := r.executor.Replace(ctx, ns.Node, mr.Spec.EffectiveMachineAPI())
 		if err != nil {
 			return err
 		}
 		if !found {
-			setNodeBlocked(ns, v1alpha1.BlockMachineNotFound, "no Machine backs this node; cannot replace")
-			metrics.BlockedDrainsTotal.WithLabelValues(v1alpha1.BlockMachineNotFound).Inc()
-			r.audit.Record(mr, corev1.EventTypeWarning, audit.ActionNodeBlocked, "node replacement blocked: no backing Machine",
+			// No Machine backs this node, so replacement can never succeed; this is
+			// a permanent failure, not a retryable block. Marking it Failed (rather
+			// than Blocked) lets the failure threshold count it and stops the
+			// re-drain/re-replace retry loop that would otherwise spin until the
+			// global timeout.
+			setNodeFailed(ns, v1alpha1.BlockMachineNotFound, "no Machine backs this node; cannot replace")
+			metrics.NodeReplacementsTotal.WithLabelValues("no_machine").Inc()
+			r.audit.Record(mr, corev1.EventTypeWarning, audit.ActionNodeBlocked, "node replacement failed: no backing Machine",
 				map[string]string{"node": ns.Node})
 			*inFlight--
 			return nil
@@ -236,16 +271,17 @@ func (r *MaintenanceRequestReconciler) stepNode(
 			}
 			return nil
 		}
-		// Old node removed. If a target version is set, require a Ready node at
-		// that version before declaring success (best-effort verification).
+		// Old node removed. If a target version is set, require the count of Ready
+		// nodes at that version to exceed the pre-replacement baseline, i.e. a new
+		// node actually joined at the target version (best-effort verification).
 		if v := targetVersion(mr); v != "" {
-			ok, err := r.kube.ReadyNodeAtVersion(ctx, v)
+			ready, err := r.kube.CountReadyNodesAtVersion(ctx, v)
 			if err != nil {
 				return err
 			}
-			if !ok {
+			if ready <= ns.ReplacementBaseline {
 				if r.replacementTimedOut(mr, ns) {
-					r.blockReplacement(mr, ns, "replacement timed out: no Ready node at "+v, inFlight)
+					r.blockReplacement(mr, ns, "replacement timed out: no new Ready node at "+v, inFlight)
 				}
 				return nil
 			}
@@ -387,6 +423,53 @@ func setNodeTerminal(ns *v1alpha1.NodeExecutionStatus, phase v1alpha1.NodePhase,
 
 func setNodeBlocked(ns *v1alpha1.NodeExecutionStatus, reason, msg string) {
 	setNodeTerminal(ns, v1alpha1.NodeBlocked, reason, msg)
+}
+
+func setNodeFailed(ns *v1alpha1.NodeExecutionStatus, reason, msg string) {
+	setNodeTerminal(ns, v1alpha1.NodeFailed, reason, msg)
+}
+
+// shouldReleaseNode reports whether a node in this phase was cordoned by us and
+// is still present, so an aborting request should return it to service.
+func shouldReleaseNode(p v1alpha1.NodePhase) bool {
+	switch p {
+	case v1alpha1.NodeCordoning, v1alpha1.NodeDraining, v1alpha1.NodePostCheck,
+		v1alpha1.NodeUncordoning, v1alpha1.NodeBlocked:
+		return true
+	default:
+		return false
+	}
+}
+
+// nodesToRelease returns the node names an aborting request should uncordon: the
+// nodes it cordoned, but only when the request asked for nodes to be returned to
+// service (UncordonAfter) and does not replace them (replacement destroys the
+// node, so there is nothing to return).
+func nodesToRelease(mr *v1alpha1.MaintenanceRequest) []string {
+	if !mr.Spec.UncordonAfter || mr.Spec.ReplaceNodes() {
+		return nil
+	}
+	var out []string
+	for i := range mr.Status.Nodes {
+		if shouldReleaseNode(mr.Status.Nodes[i].Phase) {
+			out = append(out, mr.Status.Nodes[i].Node)
+		}
+	}
+	return out
+}
+
+// releaseCordonedNodes best-effort uncordons the nodes an aborting request had
+// cordoned. Failures are logged, not fatal: the request still terminates.
+func (r *MaintenanceRequestReconciler) releaseCordonedNodes(ctx context.Context, mr *v1alpha1.MaintenanceRequest) {
+	logger := log.FromContext(ctx)
+	for _, name := range nodesToRelease(mr) {
+		if err := r.executor.Uncordon(ctx, name); err != nil {
+			logger.Error(err, "best-effort uncordon on abort failed", "node", name)
+			continue
+		}
+		r.audit.Record(mr, corev1.EventTypeNormal, audit.ActionNodeUncordoned,
+			"node uncordoned (request aborted)", map[string]string{"node": name})
+	}
 }
 
 func anyNodeAtPostCheck(mr *v1alpha1.MaintenanceRequest) bool {

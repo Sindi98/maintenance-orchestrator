@@ -17,11 +17,12 @@ type MaintenancePolicySpec struct {
 	// +kubebuilder:default={"node-role.kubernetes.io/control-plane","node-role.kubernetes.io/master"}
 	ControlPlaneNodeLabels []string `json:"controlPlaneNodeLabels,omitempty"`
 
-	// MaxConcurrentDrains caps how many nodes a single MaintenanceRequest may
-	// drain at once (its effective per-request concurrency is the minimum of this
-	// and the request's spec.maxConcurrent). It is enforced per request, not
-	// summed across concurrently-running requests; use MaxUnavailableNodes /
-	// MaxUnavailablePercent to bound cluster-wide blast radius across requests.
+	// MaxConcurrentDrains caps how many nodes may be draining at once. It bounds
+	// both a single request (together with the request's spec.maxConcurrent) and,
+	// on a best-effort basis, the sum across all concurrently-running requests.
+	// The cross-request cap is approximate when the controller runs with
+	// reconcileConcurrency > 1 (a brief overshoot is possible); run with
+	// reconcileConcurrency: 1 for a strict cluster-wide guarantee.
 	// +kubebuilder:default=1
 	// +kubebuilder:validation:Minimum=1
 	MaxConcurrentDrains int32 `json:"maxConcurrentDrains"`

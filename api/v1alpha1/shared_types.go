@@ -419,6 +419,14 @@ type NodeExecutionStatus struct {
 	// RemainingPods is the number of evictable pods still present.
 	RemainingPods int32 `json:"remainingPods"`
 
+	// ReplacementBaseline is internal bookkeeping for node replacement: the number
+	// of Ready nodes already at the target kubelet version when this node's
+	// replacement began. The replacement is considered verified once the count of
+	// Ready nodes at that version exceeds this baseline (i.e. a genuinely new node
+	// joined), instead of matching any pre-existing node at the version.
+	// +optional
+	ReplacementBaseline int32 `json:"replacementBaseline,omitempty"`
+
 	// BlockReason is the machine-readable reason the node is blocked, if any.
 	// +optional
 	BlockReason string `json:"blockReason,omitempty"`

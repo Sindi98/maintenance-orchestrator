@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -113,24 +114,45 @@ func (s *Server) handleCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	mr, err := parseRequestForm(r)
 	if err != nil {
-		d := defaultNewData(err.Error())
-		for k := range r.PostForm {
-			d.Form[k] = r.PostForm.Get(k)
-		}
 		w.WriteHeader(http.StatusBadRequest)
-		s.renderPage(w, "new.html", d)
+		s.renderPage(w, "new.html", newDataFromForm(err.Error(), r))
 		return
 	}
 	if err := s.client.Create(r.Context(), mr); err != nil {
-		d := defaultNewData("create failed: " + err.Error())
-		for k := range r.PostForm {
-			d.Form[k] = r.PostForm.Get(k)
-		}
 		w.WriteHeader(http.StatusConflict)
-		s.renderPage(w, "new.html", d)
+		s.renderPage(w, "new.html", newDataFromForm("create failed: "+err.Error(), r))
 		return
 	}
 	http.Redirect(w, r, "/requests/"+mr.Name, http.StatusSeeOther)
+}
+
+// enforceSameOrigin wraps a state-changing handler with a CSRF defense: when the
+// request carries a browser Origin (or Referer) header, its host must match the
+// request host. Requests without either header (e.g. curl or in-cluster scripts)
+// are allowed, since CSRF requires a browser replaying ambient credentials.
+func enforceSameOrigin(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !sameOriginRequest(r) {
+			http.Error(w, "cross-origin request blocked", http.StatusForbidden)
+			return
+		}
+		next(w, r)
+	}
+}
+
+func sameOriginRequest(r *http.Request) bool {
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		origin = r.Header.Get("Referer")
+	}
+	if origin == "" {
+		return true
+	}
+	u, err := url.Parse(origin)
+	if err != nil || u.Host == "" {
+		return false
+	}
+	return u.Host == r.Host
 }
 
 // handleAction returns a handler that applies the given runtime action.
@@ -230,6 +252,26 @@ func (s *Server) fail(w http.ResponseWriter, err error) {
 	// can carry Kubernetes API/client internals that should not reach the browser.
 	s.log.Error(err, "dashboard request failed")
 	http.Error(w, "internal server error", http.StatusInternalServerError)
+}
+
+// newDataFromForm builds the create-form view-model for an error re-render,
+// preserving what the operator submitted. Checkboxes absent from the POST
+// (browsers omit unchecked boxes) are reflected as unchecked rather than keeping
+// defaultNewData's defaults — e.g. uncordonAfter defaults to checked, which would
+// otherwise silently re-check itself after the operator unchecked it.
+func newDataFromForm(errMsg string, r *http.Request) newData {
+	d := defaultNewData(errMsg)
+	for k := range r.PostForm {
+		d.Form[k] = r.PostForm.Get(k)
+	}
+	for _, k := range []string{"uncordonAfter", "allowControlPlane", "force", "upgrade"} {
+		if formBool(r, k) {
+			d.Form[k] = "on"
+		} else {
+			d.Form[k] = ""
+		}
+	}
+	return d
 }
 
 func defaultNewData(errMsg string) newData {

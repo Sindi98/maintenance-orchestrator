@@ -135,7 +135,9 @@ func Load() (*Config, error) {
 		}
 	}
 
-	applyEnvOverrides(cfg)
+	if err := applyEnvOverrides(cfg); err != nil {
+		return nil, fmt.Errorf("invalid environment override: %w", err)
+	}
 
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid configuration: %w", err)
@@ -143,27 +145,50 @@ func Load() (*Config, error) {
 	return cfg, nil
 }
 
-func applyEnvOverrides(cfg *Config) {
+// applyEnvOverrides applies environment-variable overrides. A variable that is
+// set but malformed is a hard error rather than being silently ignored, so an
+// operator typo cannot quietly fall back to the default.
+func applyEnvOverrides(cfg *Config) error {
+	var err error
 	cfg.MetricsAddr = envString("METRICS_ADDR", cfg.MetricsAddr)
 	cfg.ProbeAddr = envString("PROBE_ADDR", cfg.ProbeAddr)
-	cfg.UIEnabled = envBool("UI_ENABLED", cfg.UIEnabled)
+	if cfg.UIEnabled, err = envBool("UI_ENABLED", cfg.UIEnabled); err != nil {
+		return err
+	}
 	cfg.UIAddr = envString("UI_ADDR", cfg.UIAddr)
-	cfg.LeaderElection = envBool("LEADER_ELECTION", cfg.LeaderElection)
+	if cfg.LeaderElection, err = envBool("LEADER_ELECTION", cfg.LeaderElection); err != nil {
+		return err
+	}
 	cfg.LeaderElectionID = envString("LEADER_ELECTION_ID", cfg.LeaderElectionID)
-	cfg.ReconcileConcurrency = envInt("RECONCILE_CONCURRENCY", cfg.ReconcileConcurrency)
-	cfg.EvictionPollInterval = envDuration("EVICTION_POLL_INTERVAL", cfg.EvictionPollInterval)
-	cfg.GlobalRequeueInterval = envDuration("GLOBAL_REQUEUE_INTERVAL", cfg.GlobalRequeueInterval)
-	cfg.DefaultDrainTimeout = envDuration("DEFAULT_DRAIN_TIMEOUT", cfg.DefaultDrainTimeout)
-	cfg.DefaultGlobalTimeout = envDuration("DEFAULT_GLOBAL_TIMEOUT", cfg.DefaultGlobalTimeout)
-	cfg.DefaultReplacementTimeout = envDuration("DEFAULT_REPLACEMENT_TIMEOUT", cfg.DefaultReplacementTimeout)
+	if cfg.ReconcileConcurrency, err = envInt("RECONCILE_CONCURRENCY", cfg.ReconcileConcurrency); err != nil {
+		return err
+	}
+	if cfg.EvictionPollInterval, err = envDuration("EVICTION_POLL_INTERVAL", cfg.EvictionPollInterval); err != nil {
+		return err
+	}
+	if cfg.GlobalRequeueInterval, err = envDuration("GLOBAL_REQUEUE_INTERVAL", cfg.GlobalRequeueInterval); err != nil {
+		return err
+	}
+	if cfg.DefaultDrainTimeout, err = envDuration("DEFAULT_DRAIN_TIMEOUT", cfg.DefaultDrainTimeout); err != nil {
+		return err
+	}
+	if cfg.DefaultGlobalTimeout, err = envDuration("DEFAULT_GLOBAL_TIMEOUT", cfg.DefaultGlobalTimeout); err != nil {
+		return err
+	}
+	if cfg.DefaultReplacementTimeout, err = envDuration("DEFAULT_REPLACEMENT_TIMEOUT", cfg.DefaultReplacementTimeout); err != nil {
+		return err
+	}
 	cfg.LogLevel = envString("LOG_LEVEL", cfg.LogLevel)
 	cfg.LogFormat = envString("LOG_FORMAT", cfg.LogFormat)
-	cfg.EnableK8sEvents = envBool("ENABLE_K8S_EVENTS", cfg.EnableK8sEvents)
+	if cfg.EnableK8sEvents, err = envBool("ENABLE_K8S_EVENTS", cfg.EnableK8sEvents); err != nil {
+		return err
+	}
 	cfg.DefaultPolicyName = envString("DEFAULT_POLICY_NAME", cfg.DefaultPolicyName)
 	cfg.AuditExportPath = envString("AUDIT_EXPORT_PATH", cfg.AuditExportPath)
 	if v := os.Getenv("DEFAULT_POOL_KEYS"); v != "" {
 		cfg.DefaultPoolKeys = splitTrim(v)
 	}
+	return nil
 }
 
 // Validate checks that the configuration is internally consistent.
@@ -216,31 +241,40 @@ func envString(key, def string) string {
 	return def
 }
 
-func envBool(key string, def bool) bool {
-	if v, ok := os.LookupEnv(key); ok {
-		if b, err := strconv.ParseBool(strings.TrimSpace(v)); err == nil {
-			return b
-		}
+func envBool(key string, def bool) (bool, error) {
+	v, ok := os.LookupEnv(key)
+	if !ok {
+		return def, nil
 	}
-	return def
+	b, err := strconv.ParseBool(strings.TrimSpace(v))
+	if err != nil {
+		return def, fmt.Errorf("%s=%q is not a valid boolean (use true/false)", key, v)
+	}
+	return b, nil
 }
 
-func envInt(key string, def int) int {
-	if v, ok := os.LookupEnv(key); ok {
-		if n, err := strconv.Atoi(strings.TrimSpace(v)); err == nil {
-			return n
-		}
+func envInt(key string, def int) (int, error) {
+	v, ok := os.LookupEnv(key)
+	if !ok {
+		return def, nil
 	}
-	return def
+	n, err := strconv.Atoi(strings.TrimSpace(v))
+	if err != nil {
+		return def, fmt.Errorf("%s=%q is not a valid integer", key, v)
+	}
+	return n, nil
 }
 
-func envDuration(key string, def Duration) Duration {
-	if v, ok := os.LookupEnv(key); ok {
-		if d, err := time.ParseDuration(strings.TrimSpace(v)); err == nil {
-			return Duration{d}
-		}
+func envDuration(key string, def Duration) (Duration, error) {
+	v, ok := os.LookupEnv(key)
+	if !ok {
+		return def, nil
 	}
-	return def
+	d, err := time.ParseDuration(strings.TrimSpace(v))
+	if err != nil {
+		return def, fmt.Errorf("%s=%q is not a valid duration (e.g. \"30s\", \"5m\")", key, v)
+	}
+	return Duration{d}, nil
 }
 
 func splitTrim(s string) []string {

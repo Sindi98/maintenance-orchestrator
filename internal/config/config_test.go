@@ -64,3 +64,25 @@ func TestDurationUnmarshalUnitsVsBareNumber(t *testing.T) {
 		t.Errorf("bare 5 = %s, want 5ns", n.Duration)
 	}
 }
+
+func TestLoadRejectsMalformedEnvOverride(t *testing.T) {
+	t.Setenv("RECONCILE_CONCURRENCY", "notanumber")
+	if _, err := Load(); err == nil {
+		t.Fatal("Load() = nil, want an error for a malformed RECONCILE_CONCURRENCY")
+	}
+}
+
+func TestLoadAppliesValidEnvOverride(t *testing.T) {
+	t.Setenv("UI_ENABLED", "true")
+	t.Setenv("EVICTION_POLL_INTERVAL", "10s")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if !cfg.UIEnabled {
+		t.Error("UI_ENABLED=true not applied")
+	}
+	if cfg.EvictionPollInterval.Duration != 10*time.Second {
+		t.Errorf("EVICTION_POLL_INTERVAL = %s, want 10s", cfg.EvictionPollInterval.Duration)
+	}
+}

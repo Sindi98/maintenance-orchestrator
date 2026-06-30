@@ -86,7 +86,8 @@ func (r *MaintenanceRequestReconciler) reconcileValidating(ctx context.Context, 
 		switch res {
 		case approval.Rejected:
 			r.recordDecision(mr, decision, audit.ActionApprovalDenied)
-			return r.cancel(ctx, mr, "drain rejected at approval gate")
+			// Rejected before any node was touched; nothing to release.
+			return r.cancel(ctx, mr, "drain rejected at approval gate", false)
 		case approval.Approved:
 			r.recordDecision(mr, decision, audit.ActionApprovalGranted)
 			setCondition(mr, v1alpha1.CondApproved, metav1.ConditionTrue, "Approved", "drain gate approved")
@@ -130,7 +131,10 @@ func (r *MaintenanceRequestReconciler) reconcileAwaitingApproval(ctx context.Con
 		mr.Status.Message = fmt.Sprintf("%s approved; proceeding", gate)
 	case approval.Rejected:
 		r.recordDecision(mr, decision, audit.ActionApprovalDenied)
-		return r.cancel(ctx, mr, fmt.Sprintf("%s rejected at approval gate", gate))
+		// Do not release nodes: rejecting the Uncordon gate means the approver
+		// wants drained nodes to stay cordoned. (A Drain-gate rejection happens
+		// before any node is cordoned, so there is nothing to release either way.)
+		return r.cancel(ctx, mr, fmt.Sprintf("%s rejected at approval gate", gate), false)
 	case approval.NotRequired:
 		mr.Status.ApprovalGate = ""
 		mr.Status.Phase = nextPhaseAfterGate(gate)

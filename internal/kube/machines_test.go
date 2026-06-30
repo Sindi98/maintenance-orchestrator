@@ -72,12 +72,12 @@ func TestKubeletVersionAndReadyAtVersion(t *testing.T) {
 	}
 
 	c := New(fakeClient(t, n1, n2))
-	if ok, _ := c.ReadyNodeAtVersion(context.Background(), "v1.30.2"); !ok {
-		t.Error("expected a Ready node at v1.30.2")
+	if got, _ := c.CountReadyNodesAtVersion(context.Background(), "v1.30.2"); got != 1 {
+		t.Errorf("CountReadyNodesAtVersion(v1.30.2) = %d, want 1", got)
 	}
-	// n2 is at v1.29.5 but NotReady, so it must not match.
-	if ok, _ := c.ReadyNodeAtVersion(context.Background(), "v1.29.5"); ok {
-		t.Error("a NotReady node must not satisfy ReadyNodeAtVersion")
+	// n2 is at v1.29.5 but NotReady, so it must not be counted.
+	if got, _ := c.CountReadyNodesAtVersion(context.Background(), "v1.29.5"); got != 0 {
+		t.Errorf("CountReadyNodesAtVersion(v1.29.5) = %d, want 0 (NotReady excluded)", got)
 	}
 }
 
