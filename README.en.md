@@ -178,7 +178,7 @@ Precedence: **defaults → YAML file (`--config` / `CONFIG_FILE`) → environmen
 ## Deploy on Kubernetes
 
 > 📘 **Complete, precise install guide** (prerequisites, image, 3 methods, verification,
-> config, OpenShift, upgrade, uninstall, troubleshooting): [`docs/INSTALL.md`](docs/INSTALL.md).
+> config, OpenShift, upgrade, uninstall, troubleshooting): [`docs/INSTALL.en.md`](docs/INSTALL.en.md).
 
 ```bash
 # 1) Image: build and push to a registry reachable from the cluster
