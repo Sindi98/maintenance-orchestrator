@@ -1,0 +1,68 @@
+# UN SOLO programma, UNA SOLA decisione: la presenza (o assenza) di `spec.upgrade`.
+#
+#   - SENZA spec.upgrade  -> SOLO manutenzione/patching: cordon -> drain -> uncordon.
+#                            (il nodo torna in servizio; patchi OS/kernel/MCO a parte)
+#   - CON  spec.upgrade   -> manutenzione + UPGRADE: cordon -> drain -> il nodo viene
+#                            SOSTITUITO (la sua Machine viene eliminata e il pool lo
+#                            ricrea alla nuova versione). Niente uncordon.
+#
+# Entrambi passano dagli stessi guardrail: preflight, PDB, concorrenza, finestre,
+# approvazioni. Cambia solo l'esito finale del nodo.
+#
+# Dove gira la metà "upgrade" (serve un meccanismo di sostituzione nodi):
+#   | Ambiente                         | Patching | Upgrade (replacement)        |
+#   |----------------------------------|----------|------------------------------|
+#   | OpenShift / OKD                  |   sì     |  sì  (machine.openshift.io)  |
+#   | Cluster API (self-managed)       |   sì     |  sì  (cluster.x-k8s.io)      |
+#   | kind / Docker Desktop            |   sì     |  no  (nessuna Machine API)*  |
+#   | EKS/GKE/AKS (managed)            |   sì     |  no  (upgrade via node-group)|
+#   * su kind l'upgrade si fa ricreando il cluster con una node-image piu recente.
+#
+# Quando l'upgrade non e disponibile, il preflight risponde MACHINE_NOT_FOUND: togli
+# `spec.upgrade` per fare solo patching, oppure esegui su OpenShift/OKD/Cluster API.
+---
+# === A) SOLO PATCHING (drain sicuro) — funziona ovunque, anche kind ===
+apiVersion: maintenance.platform.dev/v1alpha1
+kind: MaintenanceRequest
+metadata:
+  name: pool-patch
+spec:
+  mode: Execute
+  reason: "patch del kernel / manutenzione nodo"
+  requestedBy: "sre@example.com"
+  target:
+    type: NodeSelector
+    selector:
+      matchLabels:
+        node-role.kubernetes.io/worker: ""
+  strategy: Serial          # un nodo alla volta
+  maxConcurrent: 1
+  uncordonAfter: true       # rimette il nodo in servizio dopo il drain
+  approval:
+    policy: ManualBeforeDrain
+  # nessun blocco 'upgrade' -> SOLO drain + uncordon
+---
+# === B) PATCHING + UPGRADE — stesso tool, aggiungi solo 'upgrade' (OpenShift/OKD/CAPI) ===
+apiVersion: maintenance.platform.dev/v1alpha1
+kind: MaintenanceRequest
+metadata:
+  name: pool-upgrade
+spec:
+  mode: Execute
+  reason: "upgrade del pool worker a v1.30.2"
+  requestedBy: "sre@example.com"
+  target:
+    type: NodeSelector
+    selector:
+      matchLabels:
+        node-role.kubernetes.io/worker: ""
+  strategy: Serial
+  maxConcurrent: 1
+  uncordonAfter: true
+  approval:
+    policy: ManualBeforeDrain
+  upgrade:                          # <-- LA DECISIONE: ora e' anche upgrade
+    strategy: ReplaceNode
+    machineAPI: Auto                # Auto rileva OpenShift o Cluster API dal nodo
+    targetKubeletVersion: "v1.30.2" # post-check: il nodo completa solo a questa versione
+    replacementTimeout: 30m
