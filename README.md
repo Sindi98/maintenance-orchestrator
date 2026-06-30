@@ -10,6 +10,32 @@ restart. L'"API" e la CRD stessa; le operazioni (approve / reject / pause / resu
 cancel) si esprimono come patch di `spec`.
 > **Stato:** `v1alpha1` (alpha). Design di dettaglio in [`docs/DESIGN.md`](docs/DESIGN.md).
 ---
+## 🚀 Avvio rapido (con interfaccia grafica)
+Su **Docker Desktop** (Kubernetes integrato), dalla cartella del progetto:
+```bash
+docker build -t maintenance-orchestrator:latest .              # immagine locale, niente push
+kubectl apply -k deploy                                        # CRD + RBAC + controller + dashboard
+kubectl apply -f deploy/samples/policy-cluster-default.yaml    # policy di default
+kubectl -n maintenance-orchestrator-system rollout status deploy/maintenance-orchestrator
+kubectl -n maintenance-orchestrator-system port-forward svc/maintenance-orchestrator-ui 8082:8082
+```
+Apri **http://localhost:8082** → è l'interfaccia grafica (lascia aperto il `port-forward`).
+Guida completa passo-passo: [`docs/INSTALL.md`](docs/INSTALL.md).
+
+> ⚠️ **Cluster a nodo singolo (Docker Desktop):** l'unico nodo è control-plane, quindi
+> protetto dai guardrail — una manutenzione reale (`Execute`) viene **bloccata di proposito**
+> e *sembra* che "non faccia nulla". È il comportamento corretto. Per **vederla agire**
+> (cordon → drain → uncordon) serve un cluster **multi-nodo** (es. `kind`): vedi
+> [`docs/DEMO.md`](docs/DEMO.md). Su nodo singolo usa `DryRun`/`Advisory` (analisi, nessuna modifica).
+
+### 📚 Documentazione
+| Argomento | 🇮🇹 Italiano | 🇬🇧 English |
+|---|---|---|
+| Panoramica | questo file | [`README.en.md`](README.en.md) |
+| Installazione (completa) | [`docs/INSTALL.md`](docs/INSTALL.md) | [`docs/INSTALL.en.md`](docs/INSTALL.en.md) |
+| Demo / esempi (Docker Desktop, kind) | [`docs/DEMO.md`](docs/DEMO.md) | [`docs/DEMO.en.md`](docs/DEMO.en.md) |
+| Architettura / design | [`docs/DESIGN.md`](docs/DESIGN.md) | [`docs/DESIGN.en.md`](docs/DESIGN.en.md) |
+---
 ## Obiettivo
 Ridurre il rischio operativo durante cordon, drain, uncordon, rolling maintenance,
 node replacement e finestre di manutenzione di pool, fornendo: preflight di

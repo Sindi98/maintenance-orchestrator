@@ -17,6 +17,35 @@ are expressed as patches to `spec`.
 
 ---
 
+## 🚀 Quickstart (with the graphical interface)
+
+On **Docker Desktop** (built-in Kubernetes), from the project folder:
+```bash
+docker build -t maintenance-orchestrator:latest .              # local image, no push
+kubectl apply -k deploy                                        # CRDs + RBAC + controller + dashboard
+kubectl apply -f deploy/samples/policy-cluster-default.yaml    # default policy
+kubectl -n maintenance-orchestrator-system rollout status deploy/maintenance-orchestrator
+kubectl -n maintenance-orchestrator-system port-forward svc/maintenance-orchestrator-ui 8082:8082
+```
+Open **http://localhost:8082** → that's the graphical interface (keep the `port-forward`
+running). Full step-by-step guide: [`docs/INSTALL.en.md`](docs/INSTALL.en.md).
+
+> ⚠️ **Single-node cluster (Docker Desktop):** the only node is the control-plane, so it is
+> protected by the guardrails — a real maintenance (`Execute`) is **blocked on purpose** and
+> *appears* to "do nothing". That is the correct behavior. To **watch it act**
+> (cordon → drain → uncordon) you need a **multi-node** cluster (e.g. `kind`): see
+> [`docs/DEMO.en.md`](docs/DEMO.en.md). On a single node use `DryRun`/`Advisory` (analysis only).
+
+### 📚 Documentation
+| Topic | 🇮🇹 Italian | 🇬🇧 English |
+|---|---|---|
+| Overview | [`README.md`](README.md) | this file |
+| Installation (complete) | [`docs/INSTALL.md`](docs/INSTALL.md) | [`docs/INSTALL.en.md`](docs/INSTALL.en.md) |
+| Demo / examples (Docker Desktop, kind) | [`docs/DEMO.md`](docs/DEMO.md) | [`docs/DEMO.en.md`](docs/DEMO.en.md) |
+| Architecture / design | [`docs/DESIGN.md`](docs/DESIGN.md) | [`docs/DESIGN.en.md`](docs/DESIGN.en.md) |
+
+---
+
 ## Table of contents
 
 - [Goal](#goal)
