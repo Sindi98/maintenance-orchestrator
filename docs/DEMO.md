@@ -46,13 +46,17 @@ kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 nodes:
   - role: control-plane
+    image: kindest/node:v1.27.3      # <-- versione VECCHIA
   - role: worker
+    image: kindest/node:v1.27.3
   - role: worker
+    image: kindest/node:v1.27.3
   - role: worker
+    image: kindest/node:v1.27.3
 EOF
 
 kubectl config use-context kind-mo-demo
-kubectl get nodes -o wide
+kubectl get nodes -o wide            # colonna VERSION = v1.27.3
 ```
 
 ---
