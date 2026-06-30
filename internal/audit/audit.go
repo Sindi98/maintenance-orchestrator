@@ -48,6 +48,11 @@ type Logger struct {
 	recorder record.EventRecorder
 	events   bool
 
+	// fileConfigured is set once at construction when an export path is given and
+	// is never mutated afterwards, so it can be read without the lock. file itself
+	// is guarded by mu (Close nils it on shutdown).
+	fileConfigured bool
+
 	mu   sync.Mutex
 	file *os.File
 }
@@ -78,6 +83,7 @@ func New(log logr.Logger, recorder record.EventRecorder, enableEvents bool, expo
 			return nil, fmt.Errorf("open audit export file %q: %w", exportPath, err)
 		}
 		l.file = f
+		l.fileConfigured = true
 	}
 	return l, nil
 }
@@ -92,7 +98,7 @@ func (l *Logger) Record(obj runtime.Object, eventType, action, message string, f
 		l.recorder.Event(obj, eventType, reasonFor(action), message)
 	}
 
-	if l.file != nil {
+	if l.fileConfigured {
 		l.writeFile(obj, eventType, action, message, fields)
 	}
 }
@@ -121,6 +127,11 @@ func (l *Logger) writeFile(obj runtime.Object, eventType, action, message string
 
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	// The file may have been closed (and nilled) by a concurrent shutdown between
+	// the fileConfigured check in Record and acquiring this lock; guard the write.
+	if l.file == nil {
+		return
+	}
 	if _, err := l.file.Write(append(data, '\n')); err != nil {
 		l.log.Error(err, "failed to write audit entry", "action", action)
 	}

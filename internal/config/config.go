@@ -181,20 +181,24 @@ func (c *Config) Validate() error {
 	if c.ReconcileConcurrency < 1 {
 		return fmt.Errorf("reconcileConcurrency must be >= 1, got %d", c.ReconcileConcurrency)
 	}
-	if c.EvictionPollInterval.Duration <= 0 {
-		return fmt.Errorf("evictionPollInterval must be > 0")
-	}
-	if c.GlobalRequeueInterval.Duration <= 0 {
-		return fmt.Errorf("globalRequeueInterval must be > 0")
-	}
-	if c.DefaultDrainTimeout.Duration <= 0 {
-		return fmt.Errorf("defaultDrainTimeout must be > 0")
-	}
-	if c.DefaultGlobalTimeout.Duration <= 0 {
-		return fmt.Errorf("defaultGlobalTimeout must be > 0")
-	}
-	if c.DefaultReplacementTimeout.Duration <= 0 {
-		return fmt.Errorf("defaultReplacementTimeout must be > 0")
+	// Durations below one second are almost always a misconfiguration: a bare
+	// number (e.g. "5") is interpreted as nanoseconds, not seconds, which for the
+	// requeue-driving intervals would put the controller into a tight hot loop.
+	// Reject them with an actionable message instead of silently accepting 5ns.
+	for _, d := range []struct {
+		name string
+		val  time.Duration
+	}{
+		{"evictionPollInterval", c.EvictionPollInterval.Duration},
+		{"globalRequeueInterval", c.GlobalRequeueInterval.Duration},
+		{"defaultDrainTimeout", c.DefaultDrainTimeout.Duration},
+		{"defaultGlobalTimeout", c.DefaultGlobalTimeout.Duration},
+		{"defaultReplacementTimeout", c.DefaultReplacementTimeout.Duration},
+	} {
+		if d.val < time.Second {
+			return fmt.Errorf("%s must be >= 1s, got %s "+
+				"(a bare number is parsed as nanoseconds; use a unit, e.g. \"5s\")", d.name, d.val)
+		}
 	}
 	if strings.TrimSpace(c.DefaultPolicyName) == "" {
 		return fmt.Errorf("defaultPolicyName must not be empty")

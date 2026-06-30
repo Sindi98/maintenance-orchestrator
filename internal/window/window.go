@@ -31,7 +31,9 @@ func parseField(field string, min, max int) (map[int]bool, error) {
 	for _, part := range strings.Split(field, ",") {
 		step := 1
 		rangePart := part
+		hasStep := false
 		if i := strings.Index(part, "/"); i >= 0 {
+			hasStep = true
 			rangePart = part[:i]
 			s, err := strconv.Atoi(part[i+1:])
 			if err != nil || s <= 0 {
@@ -60,7 +62,15 @@ func parseField(field string, min, max int) (map[int]bool, error) {
 			if err != nil {
 				return nil, fmt.Errorf("invalid value %q", part)
 			}
-			lo, hi = v, v
+			// Standard cron: a bare value with a step ("N/step", e.g. "9/2")
+			// means "from N to the field maximum, stepping by step"; without a
+			// step it matches only N. Treating "N/step" as the single value N
+			// would silently drop every later occurrence.
+			lo = v
+			hi = v
+			if hasStep {
+				hi = max
+			}
 		}
 
 		if lo < min || hi > max || lo > hi {

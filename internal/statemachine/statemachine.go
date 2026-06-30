@@ -22,6 +22,9 @@ var transitions = map[v1alpha1.Phase]map[v1alpha1.Phase]struct{}{
 		v1alpha1.PhaseAwaitingApproval,
 		v1alpha1.PhasePlanned,
 		v1alpha1.PhaseBlocked,
+		// Validating completes directly when the target resolves to no nodes or
+		// the request is a DryRun (the plan is the deliverable).
+		v1alpha1.PhaseCompleted,
 		v1alpha1.PhaseFailed,
 		v1alpha1.PhaseCancelled,
 	),
@@ -36,6 +39,8 @@ var transitions = map[v1alpha1.Phase]map[v1alpha1.Phase]struct{}{
 		v1alpha1.PhaseExecuting,
 		v1alpha1.PhasePaused,
 		v1alpha1.PhaseBlocked,
+		// Planned completes directly when the (re)built plan covers no nodes.
+		v1alpha1.PhaseCompleted,
 		v1alpha1.PhaseCancelled,
 		v1alpha1.PhaseFailed,
 	),
@@ -50,6 +55,9 @@ var transitions = map[v1alpha1.Phase]map[v1alpha1.Phase]struct{}{
 	v1alpha1.PhasePaused: set(
 		v1alpha1.PhaseExecuting,
 		v1alpha1.PhasePlanned,
+		// A plan-less paused request resumes by re-validating.
+		v1alpha1.PhaseValidating,
+		v1alpha1.PhaseAwaitingApproval,
 		v1alpha1.PhaseCancelled,
 		v1alpha1.PhaseFailed,
 	),
@@ -57,6 +65,8 @@ var transitions = map[v1alpha1.Phase]map[v1alpha1.Phase]struct{}{
 		v1alpha1.PhaseValidating,
 		v1alpha1.PhasePlanned,
 		v1alpha1.PhaseExecuting,
+		// A blocked request is interruptible, so it may be paused.
+		v1alpha1.PhasePaused,
 		v1alpha1.PhaseCompleted,
 		v1alpha1.PhaseFailed,
 		v1alpha1.PhaseCancelled,

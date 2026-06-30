@@ -211,14 +211,7 @@ func (r *MaintenanceRequestReconciler) reconcilePaused(ctx context.Context, mr *
 		return r.requeue(r.Config.GlobalRequeueInterval.Duration), nil
 	}
 	r.audit.Record(mr, corev1.EventTypeNormal, audit.ActionResumed, "request resumed", nil)
-	switch {
-	case mr.Status.Plan != nil && len(mr.Status.Nodes) > 0:
-		mr.Status.Phase = v1alpha1.PhaseExecuting
-	case mr.Status.Plan != nil:
-		mr.Status.Phase = v1alpha1.PhasePlanned
-	default:
-		mr.Status.Phase = v1alpha1.PhaseValidating
-	}
+	mr.Status.Phase = resumePhase(mr)
 	mr.Status.Message = "resumed"
 	if err := r.updateStatus(ctx, mr); err != nil {
 		return ctrl.Result{}, err
@@ -268,6 +261,27 @@ func (r *MaintenanceRequestReconciler) reconcileBlocked(ctx context.Context, mr 
 		return ctrl.Result{}, err
 	}
 	return r.requeue(r.Config.GlobalRequeueInterval.Duration), nil
+}
+
+// resumePhase computes the phase a paused request resumes into.
+//
+// A request paused while a manual approval gate is still pending (its
+// status.approvalGate is set) resumes back into AwaitingApproval, so the gate is
+// re-evaluated rather than skipped. Without this, a request paused while waiting
+// for Drain approval would resume straight into Planned -> Executing (which never
+// re-checks the drain gate), letting a pause/resume cycle bypass the approval
+// entirely.
+func resumePhase(mr *v1alpha1.MaintenanceRequest) v1alpha1.Phase {
+	switch {
+	case mr.Status.ApprovalGate != "":
+		return v1alpha1.PhaseAwaitingApproval
+	case mr.Status.Plan != nil && len(mr.Status.Nodes) > 0:
+		return v1alpha1.PhaseExecuting
+	case mr.Status.Plan != nil:
+		return v1alpha1.PhasePlanned
+	default:
+		return v1alpha1.PhaseValidating
+	}
 }
 
 // nextPhaseAfterGate returns the phase to resume into once a gate clears.

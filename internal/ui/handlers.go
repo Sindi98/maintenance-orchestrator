@@ -226,8 +226,10 @@ func (s *Server) fail(w http.ResponseWriter, err error) {
 		http.Error(w, "not found", http.StatusNotFound)
 		return
 	}
+	// Log the full error server-side but return a generic message: the raw error
+	// can carry Kubernetes API/client internals that should not reach the browser.
 	s.log.Error(err, "dashboard request failed")
-	http.Error(w, err.Error(), http.StatusInternalServerError)
+	http.Error(w, "internal server error", http.StatusInternalServerError)
 }
 
 func defaultNewData(errMsg string) newData {
