@@ -10,30 +10,44 @@ restart. L'"API" e la CRD stessa; le operazioni (approve / reject / pause / resu
 cancel) si esprimono come patch di `spec`.
 > **Stato:** `v1alpha1` (alpha). Design di dettaglio in [`docs/DESIGN.md`](docs/DESIGN.md).
 ---
-## 🚀 Avvio rapido (con interfaccia grafica)
-Su **Docker Desktop** (Kubernetes integrato), dalla cartella del progetto:
+## 🚀 Avvio rapido (multi-nodo, con interfaccia grafica)
+Serve un cluster **multi-nodo** — l'unico dove la manutenzione **agisce davvero**. Esempio con
+`kind` (1 control-plane + 3 worker):
 ```bash
-docker build -t maintenance-orchestrator:latest .              # immagine locale, niente push
-kubectl apply -k deploy                                        # CRD + RBAC + controller + dashboard
-kubectl apply -f deploy/samples/policy-cluster-default.yaml    # policy di default
+# 1) cluster kind multi-nodo
+cat <<EOF | kind create cluster --name mo-demo --config -
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
+  - role: worker
+  - role: worker
+  - role: worker
+EOF
+# 2) immagine + caricala nel cluster kind
+docker build -t maintenance-orchestrator:latest .
+kind load docker-image maintenance-orchestrator:latest --name mo-demo
+# 3) installa controller + dashboard + policy di default
+kubectl apply -k deploy
+kubectl apply -f deploy/samples/policy-cluster-default.yaml
 kubectl -n maintenance-orchestrator-system rollout status deploy/maintenance-orchestrator
+# 4) apri la dashboard
 kubectl -n maintenance-orchestrator-system port-forward svc/maintenance-orchestrator-ui 8082:8082
 ```
-Apri **http://localhost:8082** → è l'interfaccia grafica (lascia aperto il `port-forward`).
-Guida completa passo-passo: [`docs/INSTALL.md`](docs/INSTALL.md).
+Apri **http://localhost:8082** (lascia aperto il `port-forward`). Esempi d'uso completi
+(DryRun → Execute, approvazione, pool rolling): [`docs/DEMO.md`](docs/DEMO.md).
+Installazione dettagliata (anche registry/OpenShift): [`docs/INSTALL.md`](docs/INSTALL.md).
 
-> ⚠️ **Cluster a nodo singolo (Docker Desktop):** l'unico nodo è control-plane, quindi
-> protetto dai guardrail — una manutenzione reale (`Execute`) viene **bloccata di proposito**
-> e *sembra* che "non faccia nulla". È il comportamento corretto. Per **vederla agire**
-> (cordon → drain → uncordon) serve un cluster **multi-nodo** (es. `kind`): vedi
-> [`docs/DEMO.md`](docs/DEMO.md). Su nodo singolo usa `DryRun`/`Advisory` (analisi, nessuna modifica).
+> ⚠️ **Serve un cluster multi-nodo.** Su un solo nodo (es. Docker Desktop) l'unico nodo è
+> control-plane: i guardrail bloccano ogni `Execute` **di proposito**, quindi *sembra* che
+> "non faccia nulla". Per vederlo agire (cordon → drain → uncordon) usa `kind` multi-nodo (sopra).
 
 ### 📚 Documentazione
 | Argomento | 🇮🇹 Italiano | 🇬🇧 English |
 |---|---|---|
 | Panoramica | questo file | [`README.en.md`](README.en.md) |
 | Installazione (completa) | [`docs/INSTALL.md`](docs/INSTALL.md) | [`docs/INSTALL.en.md`](docs/INSTALL.en.md) |
-| Demo / esempi (Docker Desktop, kind) | [`docs/DEMO.md`](docs/DEMO.md) | [`docs/DEMO.en.md`](docs/DEMO.en.md) |
+| Demo / esempi (multi-nodo `kind`) | [`docs/DEMO.md`](docs/DEMO.md) | [`docs/DEMO.en.md`](docs/DEMO.en.md) |
 | Architettura / design | [`docs/DESIGN.md`](docs/DESIGN.md) | [`docs/DESIGN.en.md`](docs/DESIGN.en.md) |
 ---
 ## Obiettivo
