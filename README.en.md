@@ -177,6 +177,9 @@ Precedence: **defaults → YAML file (`--config` / `CONFIG_FILE`) → environmen
 
 ## Deploy on Kubernetes
 
+> 📘 **Complete, precise install guide** (prerequisites, image, 3 methods, verification,
+> config, OpenShift, upgrade, uninstall, troubleshooting): [`docs/INSTALL.md`](docs/INSTALL.md).
+
 ```bash
 # 1) Image: build and push to a registry reachable from the cluster
 make docker-build docker-push IMG=registry.example.com/maintenance-orchestrator:v0.1.0
